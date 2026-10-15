@@ -1,0 +1,10 @@
+node_modules
+.next
+.vercel
+coverage
+anubis-scaffold
+Dockerfile
+.dockerignore
+deploy/caddy/Caddyfile
+ANUBIS_Especificacion_Maestra_v1.0.docx
+SN_TI_ANUBIS_Conversacion_Maestra*.md

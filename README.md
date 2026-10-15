@@ -1,36 +1,103 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ANUBIS
 
-## Getting Started
+Gestion inteligente de servicios en campo.
 
-First, run the development server:
+by S&N TI Soluciones Digitales
 
-```bash
+## Estado
+
+ANUBIS esta en Phase 0: fundacion profesional de producto. La app contiene branding oficial, landing publica, login mock, shell administrativo, dashboard, servicios, detalle de servicio, estados secundarios, PWA baseline, headers de seguridad, Dockerfile, Docker Compose, Caddy y documentacion de handoff.
+
+No incluye todavia autenticacion real, base de datos productiva, PostgreSQL, RLS, PDF real, pagos, WhatsApp, IA, GPS, QR ni funcionalidades de Fase 1.
+
+## Stack
+
+- Next.js 16 App Router
+- React 19
+- TypeScript strict
+- Tailwind CSS v4
+- Componentes compatibles con shadcn/ui
+- Lucide Icons
+- Supabase preparado para futura integracion
+- Vitest + Testing Library
+- Docker Compose
+- Caddy como reverse proxy HTTPS local
+
+## Desarrollo
+
+```powershell
+cd D:\Anubis
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+URL de desarrollo:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```text
+http://localhost:3000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Validacion
 
-## Learn More
+```powershell
+npm run typecheck
+npm run lint
+npm test
+npm run format
+npm run build
+npm audit --omit=dev
+npm audit --audit-level=high
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Docker Local
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Crear el entorno local:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```powershell
+copy .env.example .env
+```
 
-## Deploy on Vercel
+Levantar:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```powershell
+docker compose -f compose.yaml up -d --build
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Servicios:
+
+- `caddy`: unico punto de entrada LAN en puertos `80` y `443`.
+- `anubis-web`: Next.js standalone interno en puerto `3000`, sin publicar directamente a la LAN.
+
+## Ubuntu Server LAN
+
+La URL canonica local es:
+
+```text
+https://anubis.snti.local
+```
+
+El cliente Windows debe resolver ese hostname mediante `hosts` o DNS LAN. La IP del servidor Ubuntu no esta hardcodeada en el proyecto.
+
+Guia completa:
+
+- `docs/LOCAL_DEPLOYMENT.md`
+
+## Documentacion
+
+Leer primero:
+
+- `docs/CURRENT_STATE.md`
+- `docs/PHASE_0_HANDOFF.md`
+- `docs/ARCHITECTURE.md`
+- `docs/DESIGN_SYSTEM.md`
+- `docs/SECURITY.md`
+- `docs/TEST_REPORT.md`
+- `docs/PERFORMANCE.md`
+- `docs/PENDING_DECISIONS.md`
+- `docs/PHASE_1_PLAN.md`
+
+## Siguiente Fase
+
+FASE 1: Domain Model, ERD, PostgreSQL and RLS.
+
+No iniciar Fase 1 sin aprobar el modelo de dominio, matriz de permisos, ERD, constraints, indices y politicas RLS.

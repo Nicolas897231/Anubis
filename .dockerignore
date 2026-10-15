@@ -1,0 +1,19 @@
+.git
+.next
+.vercel
+anubis-scaffold
+coverage
+node_modules
+npm-debug.log*
+trace-turbopack.bin
+.next-profiles
+.env
+.env.*
+!.env.example
+README.md
+docs
+*.md
+!AGENTS.md
+ANUBIS_Especificacion_Maestra_v1.0.docx
+SN_TI_ANUBIS_Conversacion_Maestra*.md
+Tablero de Identidad Anubis Premium.png
