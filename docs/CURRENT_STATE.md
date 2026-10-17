@@ -3,7 +3,7 @@
 ## PROJECT
 
 ANUBIS by S&N TI. Servicios tecnicos y evidencia de operacion, no ERP.
-Actualizado: 2026-10-17; Supabase local en Ubuntu primero, autorizado por Nicolas; sin cambio de fase.
+Actualizado: 2026-10-17; Ubuntu local es el entorno completo de desarrollo/integracion. Cambio de estrategia, no cierre de fase.
 
 ## CURRENT PHASE
 
@@ -13,7 +13,8 @@ PHASE 1 IMPLEMENTED / INTEGRATION BLOCKED.
 
 Phase 0: COMPLETED; despliegue Ubuntu confirmado por el usuario.
 Phase 1: implementacion local disponible; integracion real pendiente.
-Latest QA summary: local PASS / hosted BLOCKED. Evidencia: [TEST_REPORT](TEST_REPORT.md).
+QA de codigo historico: PASS; integracion Ubuntu/gate local final: pendientes. Evidencia historica: [TEST_REPORT](TEST_REPORT.md).
+Phase 1 puede cerrar con todos los gates locales de [PHASE_1_HANDOFF](PHASE_1_HANDOFF.md) aprobados. Cloud no es requisito; cierre local no significa listo para produccion.
 
 ## NEXT PHASE
 
@@ -21,8 +22,8 @@ Phase 2 no autorizada. Primero cerrar integracion y gates pendientes de Phase 1.
 
 ## CURRENT BLOCKER
 
-Nicolas eligio Supabase local en Ubuntu primero. Archivos de laboratorio preparados, sin ejecucion remota; faltan recursos/puertos/permisos y arranque real del servidor. Evidencia: [LOCAL_LAB_VALIDATION](LOCAL_LAB_VALIDATION.md).
-Cloud diferido: sin proyecto confirmado ni configuracion local. Auth real, MFA, Data API, aislamiento, concurrencia y despliegue Phase 1 siguen sin validar; pruebas locales futuras no sustituyen hosted.
+Ubuntu reporto falta de Node en el preflight anterior; corregido sin requerir Node/npm host. Falta repetirlo y validar recursos/puertos/permisos, arranque e integracion real local. Evidencia: [LOCAL_LAB_VALIDATION](LOCAL_LAB_VALIDATION.md).
+Auth/MFA, Data API/RLS, aislamiento, concurrencia y despliegue Phase 1 deben probarse en Ubuntu con Supabase local. La ausencia de proyecto cloud ya no bloquea Phase 1.
 
 ## WHAT IS REAL
 
@@ -35,7 +36,7 @@ Cloud diferido: sin proyecto confirmado ni configuracion local. Auth real, MFA, 
 ## WHAT IS MOCK / NOT VALIDATED
 
 Las rutas /app y /admin no usan mock-data; fixtures anteriores pueden permanecer desconectados.
-SQL validado en PostgreSQL WASM aislado y SDK simulado en tests, no en infraestructura hosted.
+SQL validado en PostgreSQL WASM aislado y SDK simulado en tests; aun falta integracion real con Supabase local/Docker.
 Sin Supabase configurado, login deshabilitado y rutas privadas cerradas.
 No hay uploads, captura de firma, PDF, pagos ni offline sync; el manifest PWA no implica offline.
 Contenido publico/legal de Phase 0 no equivale a politicas finales ni contratacion aprobada.
@@ -54,25 +55,26 @@ Configuracion Supabase en runtime, sin service_role; no compartir secretos ni ca
 
 ## DEPLOYMENT SUMMARY
 
-Ubuntu con Docker Compose, Next.js privado y Caddy HTTPS interno en 443; Guardian conserva 80.
+Entorno de desarrollo/integracion: Ubuntu con Docker, Next.js privado, Caddy HTTPS en 443 y Supabase local; Guardian conserva 80.
 FQDN: https://anubis.snti.local; IP solo en DNS/hosts, no en codigo.
 Phase 0 validada por el usuario; nueva imagen Phase 1 pendiente. No se crearon recursos cloud.
-Laboratorio opt-in: compose.lab.yaml, Supabase CLI con puertos loopback, TLS Docker :8443 sin publicar y correo mediante tunel SSH. Base cloud sin cambios. Guia: [LOCAL_SUPABASE_LAB](LOCAL_SUPABASE_LAB.md).
+Diseno local existente: compose.lab.yaml, Supabase CLI con puertos loopback, TLS Docker :8443 sin publicar y correo mediante tunel SSH. PostgreSQL, Studio, correo y servicios internos no se exponen a LAN/internet. Guia: [LOCAL_SUPABASE_LAB](LOCAL_SUPABASE_LAB.md).
 
 ## CURRENT RISKS
 
-Validacion hosted/concurrencia, controles de abuso/sesiones, recuperacion MFA y backup/restore pendientes.
+Phase 1: integracion local y concurrencia reales pendientes. Riesgos operativos/sesiones y recuperacion MFA deben quedar explicitos, sin bypass.
+Cloud, SMTP externo, backup/restore y controles productivos: [PRE-PRODUCTION / RELEASE GATE](PRODUCTION_READINESS.md), diferido hasta producto funcionalmente completo; no provisionar ahora.
 Retencion/legal, aprobacion humana ERD/permisos y trial SOLO/1 seat/14 dias siguen pendientes.
 Ultimo audit: produccion sin hallazgos; 5 high en dependencias dev. No implica certificacion de seguridad.
 Detalle bajo demanda: [PENDING_DECISIONS](PENDING_DECISIONS.md).
 
 ## NEXT ACTION
 
-Publicar/descargar archivos del laboratorio revisados y obtener el preflight Ubuntu segun [NEXT_TASK](NEXT_TASK.md). No pedir proyecto cloud para este paso; no ejecutar full gate.
+Publicar/descargar la correccion si falta y ejecutar el preflight Ubuntu segun [AI_CONTEXT](AI_CONTEXT.md). No instalar/iniciar Supabase ni ejecutar full QA en esta tarea documental.
 
 ## DO NOT DO
 
-No marcar Phase 1 completa ni iniciar Phase 2; no ampliar a ERP ni nuevas funcionalidades.
+No marcar Phase 1 completa sin evidencia de todos los gates locales ni iniciar Phase 2 automaticamente; no ampliar a ERP ni nuevas funcionalidades.
 No provisionar recursos pagos ni confundir laboratorio autorizado con self-hosting de produccion; no usar datos reales ni abrir internet.
 
 ## READ NEXT

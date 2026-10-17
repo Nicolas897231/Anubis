@@ -1,7 +1,7 @@
 # Supabase Local En Ubuntu
 
-Fecha: 2026-10-17. Ruta elegida explicitamente por Nicolas: laboratorio local primero.
-Estado: archivos preparados; ejecucion Ubuntu y Auth real pendientes. No es Supabase cloud ni un despliegue self-hosted de produccion.
+Fecha: 2026-10-17. Estrategia vigente: Ubuntu + Docker + ANUBIS Next.js + Caddy HTTPS + Supabase LOCAL es el entorno completo de desarrollo/integracion.
+Estado: archivos preparados; ejecucion Ubuntu y Auth real pendientes. No es un despliegue de produccion. Cloud queda DEFERRED UNTIL PRE-PRODUCTION y no bloquea el cierre local de Phase 1.
 
 ## Topologia Y Limites
 
@@ -11,7 +11,7 @@ PC -> ANUBIS/Caddy :443 -> Next.js privado -> Caddy interno :8443 -> API Supabas
 - compose.lab.yaml es opt-in. API/DB/Studio/correo solo publican en loopback Ubuntu; nunca abrir sus puertos a LAN/internet.
 - El hostname supabase.anubis.internal existe solo como alias Docker. No agregarlo al hosts de Windows; no publicar 8443.
 - El servidor Next.js mantiene HTTPS hacia Supabase y verifica la CA con NODE_EXTRA_CA_CERTS. No usar -k, NODE_TLS_REJECT_UNAUTHORIZED=0 ni service_role.
-- Supabase CLI es un laboratorio con credenciales de desarrollo y permisos administrativos locales. Solo datos ficticios; backups antes de actualizar. No sustituye validacion hosted ni SMTP externo.
+- Supabase CLI proporciona el entorno de desarrollo/integracion con credenciales de desarrollo y permisos administrativos locales. Solo datos ficticios; backups antes de actualizar. Puede sustentar el cierre local de Phase 1, no readiness productiva; hosted y SMTP externo se prueban despues en el gate de release.
 - Los correos de confirmacion/recovery se capturan localmente. Invitaciones de membresia siguen sin envio implementado.
 
 ## 1. Publicar Y Descargar
@@ -168,11 +168,13 @@ Esperado: {"status":"ok"}; no confirma DB/Auth. Probar tambien login/logout/refr
 ## Operacion Y Evidencia
 
 - Registrar resultados reales en [LOCAL_LAB_VALIDATION](LOCAL_LAB_VALIDATION.md), nunca como hosted PASS.
-- No ejecutar full gate todavia: primero preflight y primer arranque local. Pruebas dirigidas para cualquier defecto observado.
+- Criterios completos de cierre Phase 1: [gate local](PHASE_1_HANDOFF.md#gate-local-de-cierre), desde migraciones cero y Auth/correo/MFA hasta dominio, Data API/RLS/aislamiento/concurrencia, Docker/HTTPS y smoke desktop/mobile. No exigir proyecto cloud.
+- No ejecutar full gate ahora: primero preflight corregido; luego integracion incremental. Al cerrar Phase 1 ejecutar una vez el quality gate LOCAL final y registrar evidencia; COMPLETE local no equivale a produccion ni inicia Phase 2.
 - No usar down -v, db reset, stop --no-backup, prune ni borrar volumenes. Parada temporal: supabase stop, sin flags destructivos; mantener el checkout/project_id estable.
 - Tras reiniciar Ubuntu, comprobar servicios. No se instala systemd/autostart del laboratorio ni se promete recuperacion automatica; iniciar con la misma CLI/red si hace falta.
 - Para cambios de config/templates, parar/iniciar solo el stack local conservando datos, misma version CLI/red, y volver a verificar bindings. Guardar backup antes de upgrades.
 - Supabase cloud no alojara automaticamente la aplicacion Next.js. Migraciones/configuracion y datos requieren un plan separado; este laboratorio no mueve datos a cloud.
+- Cloud, SMTP externo y controles productivos pertenecen a [PRODUCTION_READINESS](PRODUCTION_READINESS.md), solo cuando ANUBIS este funcionalmente completo y listo para preproduccion/release; no provisionarlos ahora.
 
 ## Fuentes
 

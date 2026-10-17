@@ -1,5 +1,15 @@
 # Decisions
 
+## DEC-017: Ubuntu Local Como Entorno De Integracion Completo
+
+Decision explicita del usuario, 2026-10-17. Ubuntu Server + Docker + ANUBIS Next.js + Caddy HTTPS + Supabase LOCAL es el entorno completo de desarrollo/integracion. Canonical URL: https://anubis.snti.local. Guardian conserva :80 y ANUBIS :443; se mantiene el aislamiento de LOCAL_SUPABASE_LAB, sin exponer PostgreSQL, Studio, correo ni servicios internos a LAN/internet.
+
+Phase 1 puede cerrar exclusivamente con evidencia real PASS de todos los gates locales en [PHASE_1_HANDOFF](PHASE_1_HANDOFF.md#gate-local-de-cierre). Codigo/PGlite/mocks y un preflight PASS no sustituyen integracion local real. Phase 1 permanece IMPLEMENTED / INTEGRATION BLOCKED hasta completarla; este cambio documental no la cierra ni autoriza Phase 2.
+
+Cloud queda DEFERRED UNTIL PRE-PRODUCTION, solo al estar ANUBIS funcionalmente completo y listo para preproduccion/release. Proyecto cloud, migraciones hosted, Auth/SMTP externo, Data API/RLS hosted, backup/restore, secretos, dominio/TLS publicos, abuso/monitoreo y seguridad se trasladan a [PRODUCTION_READINESS](PRODUCTION_READINESS.md). No provisionar ahora. COMPLETE local no implica production readiness.
+
+Esta decision sustituye la exigencia hosted para cerrar Phase 1 presente en documentos/briefs anteriores, y precisa DEC-013, DEC-015 y DEC-016 sin borrar su historia. No cambia modelo, Auth, RLS, codigo ni topologia Docker/Caddy. Siguiente tarea unica: P1-LOCAL-01-PREFLIGHT corregido, sin instalar/iniciar Supabase en esta ejecucion documental.
+
 ## Phase 1 Superseding Decisions
 
 - DEC-006: Phase 1 is explicitly authorized by the 2026-10-15 brief. DEC-003

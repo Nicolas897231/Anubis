@@ -1,12 +1,18 @@
 # Phase 1 Hosted Validation
 
-Decision posterior 2026-10-17: Nicolas confirmo "Supabase local en Ubuntu primero". Hosted queda diferido, no aprobado. Continuacion activa: [LOCAL_SUPABASE_LAB](LOCAL_SUPABASE_LAB.md); evidencia local separada en [LOCAL_LAB_VALIDATION](LOCAL_LAB_VALIDATION.md). No pedir proyecto cloud para iniciar el laboratorio. El historial BLOCKED de abajo se conserva.
+STATUS: DEFERRED UNTIL PRE-PRODUCTION.
+Estrategia vigente: 2026-10-17. Supabase Cloud NO bloquea el cierre local de Phase 1. Solo se retoma cuando ANUBIS este funcionalmente completo y listo para preproduccion/release, segun [PRODUCTION_READINESS](PRODUCTION_READINESS.md).
+No provisionar cloud ahora. Cierre Phase 1: [gate local Ubuntu](PHASE_1_HANDOFF.md#gate-local-de-cierre). Continuacion: [AI_CONTEXT](AI_CONTEXT.md). Ningun resultado hosted se convierte en PASS por este cambio.
+
+## Historial Conservado, No Contrato Activo
+
+Los registros BLOCKED y requisitos de cierre siguientes describen la estrategia anterior. Su condicion de hosted obligatorio para Phase 1 queda sustituida por DEC-017. No ejecutar sus acciones ahora ni usarlos para bloquear el gate local.
 
 DATE: 2026-10-16 (America/Bogota)
 RESULT: BLOCKED
 ENVIRONMENT: Windows, D:\Anubis; ningun proyecto hosted identificado o enlazado en esta ejecucion.
 
-## Evidencia Actual
+## Evidencia Historica
 
 | TEST                                                                                    | RESULT  | DATE       | ENVIRONMENT                | NOTES                                                                                                                                                                                                                                              |
 | --------------------------------------------------------------------------------------- | ------- | ---------- | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -25,7 +31,7 @@ ENVIRONMENT: Windows, D:\Anubis; ningun proyecto hosted identificado o enlazado 
 
 La ausencia de configuracion local no demuestra que no exista un proyecto creado fuera de este entorno. La ultima confirmacion del usuario fue que no tenia proyecto; se necesita su confirmacion actual y acceso autorizado. No se inspeccionaron secretos del servidor, sesiones de navegador ni cuentas externas.
 
-## Accion Humana Minima
+## Acciones De La Estrategia Anterior
 
 ### Revalidacion 2026-10-17
 
@@ -37,7 +43,7 @@ NOTES: siguen ausentes los cuatro archivos env de desarrollo revisados antes; ta
 
 El usuario consulto posteriormente por un laboratorio Supabase local en Ubuntu, pero el nuevo adjunto vuelve a pedir hosted. Se solicito confirmar cloud (proyecto existente o pendiente) frente a local primero. No se instalo Supabase local ni se crearon recursos cloud. Si elige local, actualizar el contrato de trabajo; no contabilizar ese laboratorio como validacion hosted.
 
-### Para La Ruta Hosted
+### Ruta Hosted Futura, Solo En Preproduccion
 
 1. Iniciar sesion en [Supabase Dashboard](https://supabase.com/dashboard) y crear o confirmar un proyecto dedicado de pruebas, por ejemplo ANUBIS-test, sin datos de clientes.
 2. Elegir organizacion/cuenta, region y plan con presupuesto aprobado. Guardar la password DB en un gestor privado; no compartir claves, passwords, tokens ni secretos MFA por chat.
@@ -49,4 +55,4 @@ Despues de esa confirmacion, el siguiente contrato debe tratar la configuracion 
 
 ## Continuacion Y Evidencia
 
-Actualizar esta matriz incrementalmente con resultados reales y notas sanitizadas; nunca guardar tokens, contrasenas, contenido QR o secretos TOTP. Registrar nuevos resultados con su fecha, entorno y alcance. No cambiar Phase 1 a COMPLETE mientras falte un gate critico. No iniciar Phase 2.
+Cuando se autorice el gate de preproduccion, registrar resultados hosted reales con fecha/entorno y notas sanitizadas; nunca guardar tokens, passwords, QR o secretos TOTP. Hasta entonces conservar este historial. Sus pruebas pendientes NO impiden COMPLETE de Phase 1 cuando todos los gates locales pasen; tampoco se presume readiness productiva ni se inicia Phase 2.

@@ -12,21 +12,23 @@ PHASE 1.
 
 Phase 0: COMPLETED.
 Phase 1: IMPLEMENTED / INTEGRATION BLOCKED.
-Ruta confirmada: Supabase local en Ubuntu primero; cloud diferido.
+Entorno completo de desarrollo/integracion: Ubuntu + Docker + Next.js + Caddy HTTPS + Supabase LOCAL.
+Cloud: DEFERRED UNTIL PRE-PRODUCTION; no bloquea cierre local de Phase 1 ni implica readiness productiva.
 
 ## CURRENT_BLOCKER
 
-Faltan validacion Supabase hosted y validacion del despliegue Phase 1.
+Faltan integracion y despliegue Phase 1 reales en Ubuntu local; cierre por gate local, no por cloud.
 Ubuntu reporto `BLOCKED: Missing command: node`. Preflight corregido: Node vive en Docker; CLI Supabase nativa, sin Node/npm host. Falta publicar/descargar la correccion y repetir preflight; resto de requisitos no validado.
 Archivos preparados no equivalen a servicios instalados o Auth validado.
 
 ## CURRENT_TASK
 
-P1-LOCAL-01-PREFLIGHT: obtener y evaluar el preflight de solo lectura en Ubuntu.
+P1-LOCAL-01-PREFLIGHT.
 
 ## GOAL
 
-Ejecutar `bash deploy/local/preflight.sh` desde `/opt/anubis/Anubis` y revisar capacidad, puertos, permisos Docker y Caddy existente.
+Ejecutar el preflight corregido `bash deploy/local/preflight.sh` desde `/opt/anubis/Anubis` y comprobar que el servidor esta listo para Supabase local: capacidad, puertos, permisos Docker y Caddy existente.
+URL canonica: https://anubis.snti.local. Guardian conserva :80; ANUBIS conserva Caddy :443 y backend aislado.
 Si no hay acceso remoto autorizado, pedir al usuario solo esa salida sanitizada. No pedir proyecto cloud ni secretos.
 
 ## ALLOWED_SCOPE
@@ -34,7 +36,6 @@ Si no hay acceso remoto autorizado, pedir al usuario solo esa salida sanitizada.
 - Guiar publicacion/descarga revisada de los archivos preparados si faltan en Ubuntu.
 - Ejecutar/revisar preflight de solo lectura y registrar resultado real.
 - Identificar una correccion concreta si falla, sin aplicarla automaticamente fuera de alcance.
-- Correccion actual autorizada: quitar dependencia Node/npm del preflight y usar CLI nativa en la guia; sin cambios de contenedores.
 
 ## FORBIDDEN_SCOPE
 
@@ -46,7 +47,8 @@ Si no hay acceso remoto autorizado, pedir al usuario solo esa salida sanitizada.
 
 ## REQUIRED_DOCS
 
-- [LOCAL_SUPABASE_LAB](LOCAL_SUPABASE_LAB.md): secciones 1-2, correccion Node y CLI nativa.
+- [LOCAL_SUPABASE_LAB](LOCAL_SUPABASE_LAB.md): seccion 1 y limites; seccion 2 solo si falta CLI.
+- [LOCAL_LAB_VALIDATION](LOCAL_LAB_VALIDATION.md): evidencia local, no gates hosted historicos.
 
 ## TARGET_FILES_OR_AREAS
 
@@ -61,12 +63,12 @@ targeted
 ## DOCS_TO_UPDATE
 
 - docs/AI_CONTEXT.md
-- docs/LOCAL_SUPABASE_LAB.md, solo si cambia el procedimiento.
+- docs/LOCAL_LAB_VALIDATION.md, solo con evidencia nueva.
 
 ## DONE_WHEN
 
 Preflight real PASS y capacidad revisada, o FAIL/BLOCKED con causa exacta y accion siguiente.
-No inferir validacion Auth/DB/hosted del resultado.
+No inferir cierre Phase 1 ni readiness productiva del preflight. El gate final local completo se ejecutara al cerrar Phase 1, no en este paso.
 
 ## NEXT_IF_SUCCESS
 
