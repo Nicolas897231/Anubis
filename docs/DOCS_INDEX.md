@@ -1,12 +1,19 @@
 # ANUBIS Docs Index
 
-HOT CONTEXT: AGENTS, CURRENT_STATE, NEXT_TASK. All other documents are read on demand.
+| Topic               | Read                                            |
+| ------------------- | ----------------------------------------------- |
+| Ubuntu Supabase lab | [LOCAL_SUPABASE_LAB](LOCAL_SUPABASE_LAB.md)     |
+| Local lab results   | [LOCAL_LAB_VALIDATION](LOCAL_LAB_VALIDATION.md) |
+| Hosted results      | [HOSTED_VALIDATION](HOSTED_VALIDATION.md)       |
+
+Normal AI reads: AGENTS + AI_CONTEXT, then only REQUIRED_DOCS declared there. This index is cold navigation; CURRENT_STATE is the human/phase summary.
 
 | Topic                   | Read                                                                         |
 | ----------------------- | ---------------------------------------------------------------------------- |
 | Agent rules             | [AGENTS](../AGENTS.md)                                                       |
 | Current project state   | [CURRENT_STATE](CURRENT_STATE.md)                                            |
-| Current work            | [NEXT_TASK](NEXT_TASK.md)                                                    |
+| Current execution       | [AI_CONTEXT](AI_CONTEXT.md)                                                  |
+| Human task pointer      | [NEXT_TASK](NEXT_TASK.md)                                                    |
 | Task template           | [NEXT_TASK_TEMPLATE](NEXT_TASK_TEMPLATE.md)                                  |
 | Architecture            | [ARCHITECTURE](ARCHITECTURE.md)                                              |
 | Domain                  | [DOMAIN_MODEL](DOMAIN_MODEL.md)                                              |

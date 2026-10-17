@@ -32,6 +32,8 @@ SMTP/redirects/MFA real, gateway JWT y Data API, concurrencia hosted, limites di
 
 ## Proximo Paso Del Usuario
 
+Actualizacion 2026-10-17: Nicolas eligio laboratorio Supabase local en Ubuntu antes de cloud. Seguir [NEXT_TASK](NEXT_TASK.md) y [LOCAL_SUPABASE_LAB](LOCAL_SUPABASE_LAB.md). Preparacion entregada, ejecucion remota pendiente; los pasos hosted de abajo quedan diferidos, no eliminados ni aprobados.
+
 Preflight hosted 2026-10-16: sin configuracion local ni referencia CLI; detenerse en creacion/confirmacion humana del proyecto de pruebas. [HOSTED_VALIDATION](HOSTED_VALIDATION.md) registra los gates BLOCKED y [NEXT_TASK](NEXT_TASK.md) delimita la accion inmediata. El gate final esta autorizado, pero condicionado a hosted y Ubuntu listos.
 
 Crear proyecto Supabase de pruebas siguiendo AUTH.md, guardar variables solo en .env local del servidor, aplicar migraciones versionadas, ejecutar pruebas hosted y actualizar contenedor con LOCAL_DEPLOYMENT.md. No pegar secretos en el chat.

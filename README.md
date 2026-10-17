@@ -6,13 +6,13 @@ by S&N TI Soluciones Digitales. Servicios tecnicos y evidencia de operacion, no 
 
 ## Empezar
 
-AI / Developer continuation:
+For normal AI work:
 
-1. Read [AGENTS.md](AGENTS.md).
-2. Read [docs/CURRENT_STATE.md](docs/CURRENT_STATE.md).
-3. Read [docs/NEXT_TASK.md](docs/NEXT_TASK.md).
+1. Repository instructions: [AGENTS.md](AGENTS.md).
+2. Current execution context: [docs/AI_CONTEXT.md](docs/AI_CONTEXT.md).
+3. Read only REQUIRED_DOCS declared there.
 
-Do not read the entire documentation set unless required. For agents, NEXT_TASK controls which checks below apply; do not run the full gate automatically.
+Do not read the entire docs directory. AI_CONTEXT controls which checks below apply; do not run the full gate automatically.
 
 Node 24 recomendado:
 

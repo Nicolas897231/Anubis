@@ -14,6 +14,10 @@ README.md
 docs
 *.md
 !AGENTS.md
+deploy/local/certs
+supabase/.temp
+supabase/.branches
+artifacts
 ANUBIS_Especificacion_Maestra_v1.0.docx
 SN_TI_ANUBIS_Conversacion_Maestra*.md
 Tablero de Identidad Anubis Premium.png

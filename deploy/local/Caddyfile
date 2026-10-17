@@ -1,0 +1,7 @@
+import /etc/caddy/base.Caddyfile
+
+# Docker-only listener. Do not publish 8443 on the host.
+https://supabase.anubis.internal:8443 {
+	tls internal
+	reverse_proxy {$ANUBIS_LAB_API_UPSTREAM}
+}

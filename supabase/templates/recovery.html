@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="es">
+  <body>
+    <h1>ANUBIS</h1>
+    <p>Solicitaste recuperar el acceso al entorno de pruebas.</p>
+    <p>
+      <a
+        href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=recovery"
+        >Actualizar contrasena</a
+      >
+    </p>
+    <p>Si no solicitaste este cambio, ignora este mensaje.</p>
+  </body>
+</html>

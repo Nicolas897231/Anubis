@@ -130,3 +130,7 @@ OWNER puede ser responsable de servicios ademas de TECHNICIAN. Un tecnico indepe
 ## DEC-015: Runtime Y Validacion Local
 
 Supabase URL/publishable key se leen en runtime dentro de connection(), no se congelan durante el build standalone. Auth cookies HttpOnly: el browser client no se usa para sesiones. DB tests usan PGlite y shim auth limitado; esto permite replay/RLS local sin Docker pero NO reemplaza el gate hosted.
+
+## DEC-016: Laboratorio Ubuntu Antes De Cloud
+
+El 2026-10-17 Nicolas autoriza explicitamente Supabase local en Ubuntu primero. Esto permite un laboratorio CLI aislado, no self-hosting productivo ni apertura publica. Compose base permanece intacto; override opt-in, API/DB/Studio/correo publicados solo en loopback, Caddy interno TLS y CA publica de confianza para Next.js. Confirmacion/recovery usan plantillas locales compatibles con SSR. Se conserva la exigencia HTTPS del runtime; no se habilita HTTP ni se usa service_role. Cloud y sus gates quedan diferidos y separados de la evidencia local. Primer paso operativo: preflight real del servidor; no afirmar arranque ni Auth probado desde la preparacion Windows.

@@ -1,5 +1,7 @@
 # Phase 1 Hosted Validation
 
+Decision posterior 2026-10-17: Nicolas confirmo "Supabase local en Ubuntu primero". Hosted queda diferido, no aprobado. Continuacion activa: [LOCAL_SUPABASE_LAB](LOCAL_SUPABASE_LAB.md); evidencia local separada en [LOCAL_LAB_VALIDATION](LOCAL_LAB_VALIDATION.md). No pedir proyecto cloud para iniciar el laboratorio. El historial BLOCKED de abajo se conserva.
+
 DATE: 2026-10-16 (America/Bogota)
 RESULT: BLOCKED
 ENVIRONMENT: Windows, D:\Anubis; ningun proyecto hosted identificado o enlazado en esta ejecucion.
@@ -24,6 +26,18 @@ ENVIRONMENT: Windows, D:\Anubis; ningun proyecto hosted identificado o enlazado 
 La ausencia de configuracion local no demuestra que no exista un proyecto creado fuera de este entorno. La ultima confirmacion del usuario fue que no tenia proyecto; se necesita su confirmacion actual y acceso autorizado. No se inspeccionaron secretos del servidor, sesiones de navegador ni cuentas externas.
 
 ## Accion Humana Minima
+
+### Revalidacion 2026-10-17
+
+TEST: disponibilidad de configuracion para continuar el gate hosted.
+RESULT: BLOCKED.
+DATE: 2026-10-17 (America/Bogota).
+ENVIRONMENT: Windows, D:\Anubis; solo comprobacion de presencia, sin leer ni imprimir secretos.
+NOTES: siguen ausentes los cuatro archivos env de desarrollo revisados antes; tampoco existen .env.production ni .env.production.local. Sin supabase/.temp/project-ref, sin las seis variables de conexion previamente comprobadas ni NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY; CLI fuera de PATH. No se accedio a cloud ni Ubuntu y no se ejecutaron migraciones, despliegue o QA completo. La matriz anterior conserva su fecha y alcance; no hay nuevos PASS hosted.
+
+El usuario consulto posteriormente por un laboratorio Supabase local en Ubuntu, pero el nuevo adjunto vuelve a pedir hosted. Se solicito confirmar cloud (proyecto existente o pendiente) frente a local primero. No se instalo Supabase local ni se crearon recursos cloud. Si elige local, actualizar el contrato de trabajo; no contabilizar ese laboratorio como validacion hosted.
+
+### Para La Ruta Hosted
 
 1. Iniciar sesion en [Supabase Dashboard](https://supabase.com/dashboard) y crear o confirmar un proyecto dedicado de pruebas, por ejemplo ANUBIS-test, sin datos de clientes.
 2. Elegir organizacion/cuenta, region y plan con presupuesto aprobado. Guardar la password DB en un gestor privado; no compartir claves, passwords, tokens ni secretos MFA por chat.

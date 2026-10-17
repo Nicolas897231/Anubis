@@ -93,3 +93,11 @@ ANUBIS is ready for local Ubuntu deployment validation and Phase 1 planning.
 - HOSTED_VALIDATION creado con resultados BLOCKED, limites de evidencia y accion humana para crear/confirmar el proyecto de pruebas.
 - NEXT_TASK acotado al prerrequisito; PHASE_GATE=true autorizado por el usuario, diferido hasta hosted y Ubuntu listos.
 - Estado, handoff y test report actualizados sin cambios funcionales ni repeticion de QA completo. Phase 1 sigue IMPLEMENTED / INTEGRATION BLOCKED; Phase 2 no iniciada.
+
+## 2026-10-17 - Ubuntu Supabase Lab Preparation
+
+- Nicolas confirma laboratorio local primero; cloud diferido, no requisito de este paso.
+- Override Compose opt-in y listener TLS interno Caddy, conservando base, Guardian :80 y ANUBIS :443. CA publica montada read-only; sin desactivar TLS ni modificar Auth server-side.
+- Supabase CLI local con red loopback, comprobaciones de preflight/bindings y correo de confirmacion/recovery adaptado al callback SSR existente.
+- Guia GitHub/Ubuntu, rollback y tuneles SSH; certificados/env/artifacts excluidos de Git/build. Sin cambios SQL/RLS/UI, sin push ni ejecucion remota.
+- NEXT_TASK pasa a preflight Ubuntu con PHASE_GATE=false. Evidencia local separada; Phase 1 sigue IMPLEMENTED / INTEGRATION BLOCKED.

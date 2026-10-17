@@ -3,7 +3,7 @@
 ## PROJECT
 
 ANUBIS by S&N TI. Servicios tecnicos y evidencia de operacion, no ERP.
-Actualizado: 2026-10-16; preflight hosted bloqueado, sin cambio de fase.
+Actualizado: 2026-10-17; Supabase local en Ubuntu primero, autorizado por Nicolas; sin cambio de fase.
 
 ## CURRENT PHASE
 
@@ -21,9 +21,8 @@ Phase 2 no autorizada. Primero cerrar integracion y gates pendientes de Phase 1.
 
 ## CURRENT BLOCKER
 
-Ultima confirmacion del usuario: sin proyecto Supabase. Preflight local: sin archivos env de desarrollo, variables de conexion ni referencia CLI enlazada; cuenta cloud y servidor no inspeccionados.
-Se requiere crear o confirmar un proyecto dedicado de pruebas y acceso autorizado. Evidencia: [HOSTED_VALIDATION](HOSTED_VALIDATION.md).
-Faltan Auth real, confirmacion/recovery/refresh/logout, MFA real, Data API, RLS hosted, concurrencia y despliegue Ubuntu de esta version.
+Nicolas eligio Supabase local en Ubuntu primero. Archivos de laboratorio preparados, sin ejecucion remota; faltan recursos/puertos/permisos y arranque real del servidor. Evidencia: [LOCAL_LAB_VALIDATION](LOCAL_LAB_VALIDATION.md).
+Cloud diferido: sin proyecto confirmado ni configuracion local. Auth real, MFA, Data API, aislamiento, concurrencia y despliegue Phase 1 siguen sin validar; pruebas locales futuras no sustituyen hosted.
 
 ## WHAT IS REAL
 
@@ -58,6 +57,7 @@ Configuracion Supabase en runtime, sin service_role; no compartir secretos ni ca
 Ubuntu con Docker Compose, Next.js privado y Caddy HTTPS interno en 443; Guardian conserva 80.
 FQDN: https://anubis.snti.local; IP solo en DNS/hosts, no en codigo.
 Phase 0 validada por el usuario; nueva imagen Phase 1 pendiente. No se crearon recursos cloud.
+Laboratorio opt-in: compose.lab.yaml, Supabase CLI con puertos loopback, TLS Docker :8443 sin publicar y correo mediante tunel SSH. Base cloud sin cambios. Guia: [LOCAL_SUPABASE_LAB](LOCAL_SUPABASE_LAB.md).
 
 ## CURRENT RISKS
 
@@ -68,12 +68,12 @@ Detalle bajo demanda: [PENDING_DECISIONS](PENDING_DECISIONS.md).
 
 ## NEXT ACTION
 
-Crear o confirmar con Nicolas el proyecto Supabase de pruebas segun [NEXT_TASK](NEXT_TASK.md). Gate completo autorizado, pero diferido hasta hosted y Ubuntu listos.
+Publicar/descargar archivos del laboratorio revisados y obtener el preflight Ubuntu segun [NEXT_TASK](NEXT_TASK.md). No pedir proyecto cloud para este paso; no ejecutar full gate.
 
 ## DO NOT DO
 
 No marcar Phase 1 completa ni iniciar Phase 2; no ampliar a ERP ni nuevas funcionalidades.
-No provisionar recursos pagos o self-hostear Supabase automaticamente; no usar datos reales ni abrir internet aun.
+No provisionar recursos pagos ni confundir laboratorio autorizado con self-hosting de produccion; no usar datos reales ni abrir internet.
 
 ## READ NEXT
 

@@ -16,6 +16,14 @@ minimum_password_length = 12
 enable_signup = true
 enable_confirmations = true
 
+[auth.email.template.confirmation]
+subject = "ANUBIS - Confirma tu cuenta de pruebas"
+content_path = "./supabase/templates/confirmation.html"
+
+[auth.email.template.recovery]
+subject = "ANUBIS - Recupera tu acceso de pruebas"
+content_path = "./supabase/templates/recovery.html"
+
 [auth.mfa.totp]
 enroll_enabled = true
 verify_enabled = true

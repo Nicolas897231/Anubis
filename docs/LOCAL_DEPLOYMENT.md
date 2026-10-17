@@ -1,5 +1,7 @@
 # Local Deployment
 
+Actualizacion 2026-10-17: Nicolas eligio Supabase local en Ubuntu primero. Para esa ruta usar [LOCAL_SUPABASE_LAB](LOCAL_SUPABASE_LAB.md); la seccion "Supabase Primero" de esta guia describe la ruta cloud posterior, no un requisito del laboratorio. Mantener las precauciones Git, Guardian y CA de abajo.
+
 Fecha: 2026-10-15. Esta guia actualiza el laboratorio existente; no reinstala Docker ni toca Guardian.
 
 ## Topologia

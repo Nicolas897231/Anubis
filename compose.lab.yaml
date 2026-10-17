@@ -1,0 +1,35 @@
+# Opt-in only: compose.yaml + compose.lab.yaml, with --env-file .env.lab.
+services:
+  anubis-web:
+    environment:
+      APP_URL: https://anubis.snti.local
+      SUPABASE_URL: https://supabase.anubis.internal:8443
+      SUPABASE_PUBLISHABLE_KEY: ${ANUBIS_LAB_PUBLISHABLE_KEY:?Set the local publishable or legacy anon key in .env.lab}
+      NEXT_PUBLIC_SUPABASE_URL: ""
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ""
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ""
+      NODE_EXTRA_CA_CERTS: /run/anubis-ca/root.crt
+    volumes:
+      - type: bind
+        source: ./deploy/local/certs/root.crt
+        target: /run/anubis-ca/root.crt
+        read_only: true
+        bind:
+          create_host_path: false
+
+  caddy:
+    environment:
+      ANUBIS_LAB_API_UPSTREAM: ${ANUBIS_LAB_API_UPSTREAM:?Set the local API container name and internal port in .env.lab}
+    volumes:
+      - ./deploy/local/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./deploy/caddy/Caddyfile:/etc/caddy/base.Caddyfile:ro
+    networks:
+      anubis-private:
+        aliases:
+          - supabase.anubis.internal
+      supabase-lab: {}
+
+networks:
+  supabase-lab:
+    external: true
+    name: anubis-supabase-lab

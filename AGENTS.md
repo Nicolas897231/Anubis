@@ -5,62 +5,68 @@ PROJECT: ANUBIS by S&N TI
 ## Core Rules
 
 - Documentation is the source of truth; report contradictions instead of guessing.
-- Start with [CURRENT_STATE](docs/CURRENT_STATE.md), then [NEXT_TASK](docs/NEXT_TASK.md).
-- Read additional documents only when needed; never scan the entire repository.
+- Normal execution reads only this instruction layer and [AI_CONTEXT](docs/AI_CONTEXT.md).
+- AI_CONTEXT is the execution contract; other project docs are cold storage.
 - Do not invent features, turn ANUBIS into an ERP, or start another phase without authorization.
 - Preserve the multi-tenant architecture and security-first approach.
 - Never trust browser-supplied tenant, role or user identity as authorization.
 - Never expose service_role or secrets in client code, logs, Git or chat.
 - Never hardcode LAN IP addresses; use configured hostnames.
 - Preserve approved branding and supplied assets; do not redesign the logo.
-- Record important decisions in docs/DECISIONS.md and changes in docs/CHANGELOG_DEV.md.
-- Update CURRENT_STATE after relevant changes and NEXT_TASK with the exact next step.
+- Update AI_CONTEXT and at most one specialized document materially affected by a normal task.
+- Update CURRENT_STATE mainly at meaningful milestones; do not duplicate the task in NEXT_TASK.
 - Preserve historical documents and test evidence; do not replace them with prompt summaries.
-- Run targeted tests during development; full quality gate requires PHASE_GATE=true in NEXT_TASK.
+- TEST_MODE in AI_CONTEXT controls validation: targeted normally, phase_gate for phase closure.
 
-## Token Efficiency Policy
+## ULTRA-LEAN Reading Policy
 
 1. Read AGENTS.md.
-2. Read docs/CURRENT_STATE.md.
-3. Read docs/NEXT_TASK.md.
-4. Read only REQUIRED_DOCS listed in NEXT_TASK, subject to the exceptions below.
-5. Locate relevant code using targeted search.
-6. Do not recursively read src/.
-7. Do not reread unchanged documents.
-8. Do not run unrelated audits.
-9. Keep the final response concise.
-10. Preserve knowledge in documentation instead of repeating context in prompts.
+2. Read docs/AI_CONTEXT.md, the only explicit hot project context.
+3. Read only specialized docs listed in its REQUIRED_DOCS.
+4. Do not reread unchanged documents or discover skills automatically.
+5. Preserve knowledge in docs instead of repeating it in prompts or responses.
 
-## Documentation And Code On Demand
+Do not automatically read CURRENT_STATE, NEXT_TASK, handoffs, TEST_REPORT, CHANGELOG_DEV,
+SECURITY, ARCHITECTURE, AUTH, RLS or DATABASE. Existing history stays intact and available on demand.
+Never read a specialized document merely because it exists.
 
-HOT CONTEXT is this file, CURRENT_STATE and NEXT_TASK; all other docs are COLD CONTEXT.
-Use [DOCS_INDEX](docs/DOCS_INDEX.md) only to locate a document when needed.
-Do not read a specialized document simply because it exists. Read it only if:
+## Discovery And File Budget
 
-1. NEXT_TASK lists it under REQUIRED_DOCS;
-2. a concrete implementation question requires it;
-3. a contradiction must be resolved.
+Do not recursively inspect `src/`, `tests/`, `supabase/` or `docs/`.
+Locate files in this order:
 
-Do not recursively inspect `src/`, `supabase/`, or `tests/`.
-First use filename, symbol, import/reference search or targeted `rg`; then read only relevant files.
-Do not read the full changelog routinely. Historical context remains available on demand.
+1. Scoped git status / git diff.
+2. Exact filename when known.
+3. Symbol search.
+4. Import/reference search.
+5. Targeted `rg`.
+
+Read only directly relevant files; no unrelated modules or completeness scans.
+Target: 1 hot context + at most 1-3 specialized docs, and preferably 5-10 source files.
+This is a budget target, not a security restriction. If correctness requires more files,
+expand narrowly and record necessary additional docs in REQUIRED_DOCS before reading them.
 
 ## Tests And Skills On Demand
 
-- Default TEST_MODE=targeted: validate only changes and their directly affected behavior.
-- Do not automatically run full build, all SQL tests, full browser smoke, full security/npm audit or Docker rebuild.
-- A single such check may run when directly relevant; this does not authorize an unrelated full gate.
-- PHASE_GATE=false: targeted tests only. Documentation changes require documentation checks only.
-- PHASE_GATE=true: full typecheck, lint, tests, SQL, build, audit, Docker, browser and security validation allowed as relevant to the phase.
-- A full gate normally runs once at block/phase closure; record PASS, FAIL or BLOCKED honestly.
-- Do not run find-skills automatically or reread all skills. NEXT_TASK names skills only when needed; apply no unrelated skills.
+- TEST_MODE=targeted: only checks directly related to changes; docs-only work gets docs checks only.
+- Do not automatically run all tests, SQL tests, full build, npm audit, Docker rebuild, browser suite, Lighthouse or full security audits.
+- TEST_MODE=phase_gate: full validation allowed for phase closure, not repeated during intermediate edits.
+- Never run find-skills in normal execution. Use a skill only if AI_CONTEXT explicitly requests it.
+
+## Documentation Writes
+
+- Normal work: AI_CONTEXT plus at most one materially affected specialized document.
+- Do not update CHANGELOG_DEV, TEST_REPORT, handoffs or DECISIONS on every run.
+- At a significant block closure, record important evidence/decisions in the relevant cold docs.
+- At Phase 1 closure, run full QA and update CURRENT_STATE, PHASE_1_HANDOFF, TEST_REPORT,
+  CHANGELOG_DEV, AI_CONTEXT and SECURITY only if needed. Never mark completion without real evidence.
 
 ## Reporting
 
-- Unless NEXT_TASK requests otherwise, final response: approximately 15-20 lines maximum.
-- Use STATUS, CHANGED, TESTED, BLOCKERS, DOCS and NEXT; respect a task-specific format when supplied.
+- ULTRA-LEAN final response: approximately 8-10 lines maximum.
+- Format: STATUS, CHANGED, TESTED, BLOCKER, DOC, NEXT; respect a task-specific format when supplied.
 - Do not paste complete files, diffs, logs or documentation already stored in docs/.
-- Record relevant test/error summaries in TEST_REPORT or HOSTED_VALIDATION; report the result and essential error only in chat.
+- Record useful results in the task's designated evidence document, within the normal write budget.
 - Never equate local/mock verification with hosted or production validation.
 
 <!-- BEGIN:nextjs-agent-rules -->
