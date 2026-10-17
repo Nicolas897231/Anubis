@@ -1,5 +1,24 @@
 # Skills Used
 
+## Phase 1 - 2026-10-15
+
+Skills locales de C:/Users/Nicolas/.agents/skills, salvo docker-expert tambien disponible en .codex/skills. No se instalaron skills nuevas.
+
+| Skill                                 | Aplicacion                                                            | Limite                                                    |
+| ------------------------------------- | --------------------------------------------------------------------- | --------------------------------------------------------- |
+| security-auditor                      | Revision de Auth/RLS/grants, secretos y npm audit                     | No pentest completo                                       |
+| security-audit                        | Revision estatica fuente primero, fronteras y evidencia               | No se ejecuto su workflow completo de explotacion/sandbox |
+| cybersecurity                         | Minimizacion, defensa en profundidad, CSRF, sesiones, abuso           | Controles pendientes expresos                             |
+| qa-expert                             | Gate SQL, DAL, typecheck/lint/build, smoke responsive                 | Hosted no disponible                                      |
+| docker-expert                         | Runtime standalone, variables runtime, Caddy 443                      | Sin Docker CLI en Windows; Phase 1 Ubuntu pendiente       |
+| testing-jwt-token-security            | Claims/sub/exp y errores SDK; evitar confiar getSession/user_metadata | Respuestas SDK simuladas; no firma JWT real probada       |
+| testing-api-authentication-weaknesses | Anon, rol, IDOR, salto tenant, invitaciones y rutas protegidas        | Solo entorno local autorizado                             |
+| find-skills                           | Busqueda Supabase RLS y evaluacion de skills oficiales                | Ninguna instalacion                                       |
+
+La busqueda encontro supabase/agent-skills (supabase-postgres-best-practices y supabase). Se consultaron docs oficiales y se conservaron convenciones del proyecto; no se instalaron paquetes de skills por popularidad. Los principios de diseno de Phase 0 se preservan, sin declarar nuevamente ejecutadas todas las skills visuales.
+
+## Registro Historico Phase 0
+
 ## Applied Skills
 
 | Skill                | Path                                                            | Motivo                                                                         | Task                                                                                                   | Resultado                                                                                        |
@@ -21,3 +40,7 @@
 - `css-animations`: skipped because current Phase 0 benefits from restrained static polish and light CSS transitions only.
 - `testing-jwt-token-security`: skipped because JWT/auth does not exist yet.
 - `testing-api-authentication-weaknesses`: skipped because real API auth does not exist yet.
+
+## Revision De Aplicabilidad Final
+
+frontend-code-review se leyo de nuevo el 2026-10-16. La version disponible prescribe contratos Dify (web/, dify-ui) que no existen en ANUBIS; no se aplico como auditoria integral de ese framework. Se mantuvieron las revisiones propias de labels, server/client boundaries, errores y responsive con evidencia en TEST_REPORT.md.

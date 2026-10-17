@@ -1,4 +1,5 @@
-import { createClient } from "@supabase/supabase-js";
+"use client";
+import { createBrowserClient } from "@supabase/ssr";
 
 export function createBrowserSupabaseClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -8,5 +9,6 @@ export function createBrowserSupabaseClient() {
     return null;
   }
 
-  return createClient(url, anonKey);
+  // Reserved for future public browser features. Auth is server-only/HttpOnly.
+  return createBrowserClient(url, anonKey);
 }

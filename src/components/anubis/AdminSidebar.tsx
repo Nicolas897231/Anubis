@@ -22,7 +22,15 @@ const navItems = [
   { label: "Configuracion", href: "/app/settings", icon: Settings },
 ];
 
-export function AdminSidebar({ className }: { className?: string }) {
+export function AdminSidebar({
+  className,
+  plan,
+  seats,
+}: {
+  className?: string;
+  plan: string;
+  seats: number;
+}) {
   return (
     <aside
       className={cn(
@@ -55,10 +63,9 @@ export function AdminSidebar({ className }: { className?: string }) {
       </nav>
       <div className="m-3 rounded-lg border border-white/10 bg-white/6 p-4">
         <BrandDivider className="mb-3 w-10" />
-        <p className="text-sm font-medium text-white">Plan Equipo</p>
+        <p className="text-sm font-medium text-white">Plan {plan}</p>
         <p className="mt-1 text-xs leading-5 text-white/62">
-          7 de 10 licencias activas. Los usuarios suspendidos no consumen
-          asiento.
+          Limite del plan: {seats} licencias.
         </p>
       </div>
     </aside>

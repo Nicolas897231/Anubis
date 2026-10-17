@@ -1,3 +1,18 @@
+# Phase 1 Architecture Update
+
+Estado vigente 2026-10-15: fuente implementada, integracion hosted bloqueada. Los apartados historicos de Phase 0 abajo no describen ya las rutas operativas.
+
+- Auth/DAL: src/lib/auth; cookies/SSR en src/lib/supabase; refresh/no-store en src/proxy.ts.
+- Data: src/lib/data con Zod, consultas acotadas y acciones que reautorizan; paginas Server Components.
+- DB: supabase/migrations, RLS + FK compuestas + RPC SECURITY DEFINER con privilegios minimos.
+- Navegador no recibe secretos ni decide tenant/rol. La cookie de organizacion es seleccion, no permiso.
+- Supabase cloud inicialmente; Ubuntu/Caddy/Next sigue self-hosted. No APIs exclusivas de Vercel.
+- Writes pasan por RPC usando JWT del usuario, no un cliente service_role.
+- Tests PostgreSQL WASM aislados, tests DAL simulados y smoke UI sin configuracion; hosted pendiente.
+- Public landing de Phase 0 conservada. /app y /admin ya no consumen mock-data.
+
+## Registro Historico De Phase 0
+
 # ANUBIS Architecture
 
 ## Stack

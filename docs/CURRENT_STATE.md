@@ -1,96 +1,80 @@
-# Current State
+# ANUBIS Current State
 
-PROJECT:
-ANUBIS
+## PROJECT
 
-CURRENT PHASE:
-PHASE 0 SOURCE COMPLETE / DEPLOYMENT VALIDATION BLOCKED
+ANUBIS by S&N TI. Servicios tecnicos y evidencia de operacion, no ERP.
+Actualizado: 2026-10-16; preflight hosted bloqueado, sin cambio de fase.
 
-NEXT PHASE:
-PHASE 1
+## CURRENT PHASE
 
-## Product Summary
+PHASE 1 IMPLEMENTED / INTEGRATION BLOCKED.
 
-ANUBIS is a commercial SaaS/PWA by S&N TI Soluciones Digitales for intelligent field service management. The product promise is "La evidencia de tu operacion": convert field work, photos, findings, signatures, reports, and service history into traceable operational evidence.
+## PHASE STATUS
 
-The approved direction is sober, premium, technical, and business-focused. It must not become a generic ERP, cyberpunk UI, game interface, or feature-heavy template.
+Phase 0: COMPLETED; despliegue Ubuntu confirmado por el usuario.
+Phase 1: implementacion local disponible; integracion real pendiente.
+Latest QA summary: local PASS / hosted BLOCKED. Evidencia: [TEST_REPORT](TEST_REPORT.md).
 
-## What Works
+## NEXT PHASE
 
-- Public landing at `/`.
-- Mock login, register, and forgot-password routes.
-- Internal application shell at `/app/*`.
-- Dashboard with mock operational metrics.
-- Services list with filters and responsive card/table behavior.
-- Service detail route with mobile-first technician flow.
-- Secondary client, team, reports, settings, and admin placeholder pages.
-- PWA manifest and generated app icons.
-- Health endpoint at `/api/health`.
-- Security headers in `next.config.ts`.
-- Dockerfile with Next.js standalone output.
-- Compose topology with `anubis-web` behind Caddy on a private network.
-- Local HTTPS lab hostname: `https://anubis.snti.local`.
+Phase 2 no autorizada. Primero cerrar integracion y gates pendientes de Phase 1.
 
-## What Is Mock
+## CURRENT BLOCKER
 
-- Authentication and sessions.
-- Users, roles, organizations, memberships, plans, seats, clients, services, evidence, reports, and signatures.
-- Dashboard metrics and service history.
-- Privacy/cookie flows are UI notices only.
+Ultima confirmacion del usuario: sin proyecto Supabase. Preflight local: sin archivos env de desarrollo, variables de conexion ni referencia CLI enlazada; cuenta cloud y servidor no inspeccionados.
+Se requiere crear o confirmar un proyecto dedicado de pruebas y acceso autorizado. Evidencia: [HOSTED_VALIDATION](HOSTED_VALIDATION.md).
+Faltan Auth real, confirmacion/recovery/refresh/logout, MFA real, Data API, RLS hosted, concurrencia y despliegue Ubuntu de esta version.
 
-Mock data is not a security boundary and must not be treated as productive authorization.
+## WHAT IS REAL
 
-## What Does Not Exist Yet
+- Implementacion local de Auth SSR/TOTP, perfiles y onboarding de organizaciones.
+- Membresias, roles y seats/licencias; OWNER puede ejecutar servicios con un solo seat.
+- Clientes, servicios, asignaciones con historial y transiciones autorizadas.
+- Reportes versionados con finalizacion inmutable; evidencia/firma solo como metadatos.
+- Eventos de auditoria, RLS y autorizacion server-side; panel de plataforma separado.
 
-- Productive ERD.
-- PostgreSQL schema, constraints, indexes, and migrations.
-- Supabase Auth integration.
-- Row Level Security policies.
-- Server-side permission enforcement.
-- Private storage buckets and signed URLs.
-- PDF generation.
-- Payments, subscriptions, WhatsApp, IA, QR, GPS, warranties, multi-site domain expansion, or offline sync.
+## WHAT IS MOCK / NOT VALIDATED
 
-## Architecture
+Las rutas /app y /admin no usan mock-data; fixtures anteriores pueden permanecer desconectados.
+SQL validado en PostgreSQL WASM aislado y SDK simulado en tests, no en infraestructura hosted.
+Sin Supabase configurado, login deshabilitado y rutas privadas cerradas.
+No hay uploads, captura de firma, PDF, pagos ni offline sync; el manifest PWA no implica offline.
+Contenido publico/legal de Phase 0 no equivale a politicas finales ni contratacion aprobada.
 
-- Next.js 16 App Router with React 19 and TypeScript strict mode.
-- Tailwind CSS v4 design tokens in `src/app/globals.css`.
-- Generic primitives under `src/components/ui`.
-- ANUBIS domain components under `src/components/anubis`.
-- Mock data and shared helpers under `src/lib`.
-- Supabase client factory prepared for future public anon config only.
-- Docker production runtime uses `.next/standalone` and `node server.js`.
+## ARCHITECTURE SUMMARY
 
-## Deployment
+Next.js App Router/standalone, Supabase Auth SSR y PostgreSQL; organization es el tenant.
+13 tablas y 6 migraciones versionadas; lecturas con RLS, mutaciones mediante RPC acotadas.
+Roles: OWNER, ADMIN, SUPERVISOR, TECHNICIAN. Operador S&N independiente.
 
-The intended local deployment is:
+## SECURITY SUMMARY
 
-```text
-Windows client -> anubis.snti.local -> Ubuntu Server -> Caddy :443 -> anubis-web :3000
-```
+Autorizacion server-side y SQL; identidad/tenant/rol del browser no conceden permisos.
+Roles privilegiados requieren MFA aal2; operador sin acceso implicito a contenido del tenant.
+Configuracion Supabase en runtime, sin service_role; no compartir secretos ni cargar datos reales todavia.
 
-The Ubuntu LAN IP belongs only in Windows `hosts` or LAN DNS. The canonical app URL is `https://anubis.snti.local`.
+## DEPLOYMENT SUMMARY
 
-## Quality Gates
+Ubuntu con Docker Compose, Next.js privado y Caddy HTTPS interno en 443; Guardian conserva 80.
+FQDN: https://anubis.snti.local; IP solo en DNS/hosts, no en codigo.
+Phase 0 validada por el usuario; nueva imagen Phase 1 pendiente. No se crearon recursos cloud.
 
-Latest local validation passed for:
+## CURRENT RISKS
 
-- TypeScript typecheck.
-- ESLint.
-- Vitest.
-- Prettier check.
-- Next.js production build.
-- Production dependency audit.
-- Static secret/dangerous-code pattern scan.
+Validacion hosted/concurrencia, controles de abuso/sesiones, recuperacion MFA y backup/restore pendientes.
+Retencion/legal, aprobacion humana ERD/permisos y trial SOLO/1 seat/14 dias siguen pendientes.
+Ultimo audit: produccion sin hallazgos; 5 high en dependencias dev. No implica certificacion de seguridad.
+Detalle bajo demanda: [PENDING_DECISIONS](PENDING_DECISIONS.md).
 
-Docker could not be executed in the current Windows/Codex environment because the `docker` command is not installed or not on PATH. Because the Phase 0 definition requires Docker build, Compose validation, Caddy, and HTTPS validation, the source is ready but final deployment validation is blocked until the Ubuntu/Docker environment is available.
+## NEXT ACTION
 
-## Read First Next
+Crear o confirmar con Nicolas el proyecto Supabase de pruebas segun [NEXT_TASK](NEXT_TASK.md). Gate completo autorizado, pero diferido hasta hosted y Ubuntu listos.
 
-Before Phase 1, read:
+## DO NOT DO
 
-1. `docs/PHASE_0_HANDOFF.md`
-2. `docs/PHASE_1_PLAN.md`
-3. `docs/PENDING_DECISIONS.md`
-4. `docs/SECURITY.md`
-5. `docs/ARCHITECTURE.md`
+No marcar Phase 1 completa ni iniciar Phase 2; no ampliar a ERP ni nuevas funcionalidades.
+No provisionar recursos pagos o self-hostear Supabase automaticamente; no usar datos reales ni abrir internet aun.
+
+## READ NEXT
+
+[NEXT_TASK](NEXT_TASK.md). Documentos especializados solo segun necesidad; indice: [DOCS_INDEX](DOCS_INDEX.md).

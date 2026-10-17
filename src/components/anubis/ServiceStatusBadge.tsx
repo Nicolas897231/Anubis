@@ -14,6 +14,11 @@ const statusMap: Record<
   ServiceStatus,
   { label: string; className: string; icon: typeof Clock3 }
 > = {
+  draft: {
+    label: "Borrador",
+    className: "bg-muted text-muted-foreground",
+    icon: Clock3,
+  },
   assigned: {
     label: "Asignado",
     className: "bg-info-soft text-info",
@@ -30,7 +35,7 @@ const statusMap: Record<
     icon: CheckCircle2,
   },
   report_generated: {
-    label: "Informe generado",
+    label: "Informe finalizado",
     className: "bg-accent-soft text-accent-strong",
     icon: FileCheck2,
   },

@@ -1,190 +1,290 @@
-import {
-  Camera,
-  CheckCircle2,
-  ClipboardSignature,
-  FileText,
-  MapPin,
-  Play,
-  TriangleAlert,
-  UserRound,
-} from "lucide-react";
+import Link from "next/link";
 import { notFound } from "next/navigation";
-
-import { ConfirmDialog } from "@/components/anubis/ConfirmDialog";
+import { z } from "zod";
+import { requireTenant } from "@/lib/auth/context";
+import { checked, reportsForService, serviceColumns } from "@/lib/data/queries";
+import {
+  serviceRow,
+  searchPattern,
+  type SearchParams,
+} from "@/lib/data/validation";
+import {
+  assignService,
+  transitionService,
+  saveReport,
+  finalizeReport,
+} from "@/lib/data/actions";
 import { PageHeader } from "@/components/anubis/PageHeader";
 import { ServiceStatusBadge } from "@/components/anubis/ServiceStatusBadge";
-import { Button } from "@/components/ui/button";
-import { serviceTimeline, services } from "@/lib/mock-data";
-
-export function generateStaticParams() {
-  return services.map((service) => ({
-    id: service.id,
-  }));
-}
-
-export default async function ServiceDetailPage({
+import { ActionForm } from "@/components/anubis/ActionForm";
+import {
+  dateLabel,
+  SelectField,
+  TextField,
+  SearchForm,
+} from "@/components/anubis/Operational";
+export default async function Page({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: SearchParams;
 }) {
-  const { id } = await params;
-  const service = services.find((item) => item.id === id);
-
-  if (!service) {
-    notFound();
+  const { supabase, organization, membership } = await requireTenant();
+  const id = (await params).id;
+  if (!z.uuid().safeParse(id).success) notFound();
+  const result = checked(
+    await supabase
+      .from("services")
+      .select(serviceColumns)
+      .eq("organization_id", organization.id)
+      .eq("id", id)
+      .maybeSingle(),
+  );
+  if (!result) notFound();
+  const service = serviceRow.parse(result);
+  const client = z
+    .object({ name: z.string() })
+    .nullable()
+    .parse(
+      checked(
+        await supabase
+          .from("clients")
+          .select("name")
+          .eq("organization_id", organization.id)
+          .eq("id", service.client_id)
+          .maybeSingle(),
+      ),
+    );
+  const query = await searchParams;
+  const reports = await reportsForService(
+    id,
+    typeof query.report === "string" ? query.report : undefined,
+  );
+  const history = z
+    .array(
+      z.object({
+        id: z.uuid(),
+        technician_membership_id: z.uuid(),
+        created_at: z.string(),
+        ended_at: z.string().nullable(),
+      }),
+    )
+    .parse(
+      checked(
+        await supabase
+          .from("service_assignments")
+          .select("id,technician_membership_id,created_at,ended_at")
+          .eq("organization_id", organization.id)
+          .eq("service_id", id)
+          .order("created_at", { ascending: false })
+          .limit(25),
+      ),
+    );
+  const edit = membership.role !== "TECHNICIAN";
+  const assignable = edit && ["draft", "assigned"].includes(service.status);
+  const q = typeof query.q === "string" ? query.q.slice(0, 100) : "";
+  let technicians: {
+    id: string;
+    role: string;
+    profiles: { display_name: string };
+  }[] = [];
+  if (assignable) {
+    let team = supabase
+      .from("memberships")
+      .select("id,role,profiles!inner(display_name)")
+      .eq("organization_id", organization.id)
+      .eq("status", "active")
+      .in("role", ["TECHNICIAN", "OWNER"])
+      .order("id")
+      .limit(50);
+    if (membership.role === "SUPERVISOR")
+      team = team.eq("supervisor_membership_id", membership.id);
+    if (q) team = team.ilike("profiles.display_name", searchPattern(q));
+    technicians = z
+      .array(
+        z.object({
+          id: z.uuid(),
+          role: z.string(),
+          profiles: z.object({ display_name: z.string() }),
+        }),
+      )
+      .parse(checked(await team));
   }
-
-  const fieldFlow = [
-    ["Iniciar", Play, "Registrar hora y tecnico"],
-    ["Trabajo", FileText, "Documentar actividad"],
-    ["Fotos", Camera, "Adjuntar evidencia"],
-    ["Firma", ClipboardSignature, "Constancia del cliente"],
-    ["Finalizar", CheckCircle2, "Cerrar servicio"],
-  ] as const;
-
+  const draft = reports.find((r) => r.status === "draft");
+  const canWriteReport = [
+    "in_progress",
+    "completed",
+    "report_generated",
+  ].includes(service.status);
   return (
-    <div className="space-y-6">
-      <PageHeader
-        actions={
-          <>
-            <Button variant="outline">
-              <Camera aria-hidden="true" className="size-4" />
-              Evidencia
-            </Button>
-            <ConfirmDialog
-              confirmLabel="Finalizar demo"
-              description="Esta accion es solo visual en la primera iteracion. En produccion requerira permisos, estado valido y auditoria."
-              title="Finalizar servicio"
-              trigger={
-                <Button variant="accent">
-                  <CheckCircle2 aria-hidden="true" className="size-4" />
-                  Finalizar
-                </Button>
-              }
-            />
-          </>
-        }
-        description={`${service.clientName} · ${service.address}`}
-        title={`Servicio ${service.code}`}
-      />
-
-      <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
-        <article className="rounded-lg border border-border bg-card p-5 shadow-[0_1px_2px_rgba(11,13,13,0.04)]">
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <ServiceStatusBadge status={service.status} />
-                <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
-                  Prioridad {service.priority}
-                </span>
-              </div>
-              <h2 className="mt-4 text-xl font-semibold tracking-tight">
-                {service.subject}
-              </h2>
-            </div>
-            <span className="text-sm font-semibold tabular-nums text-accent-strong">
-              {service.scheduledFor}
-            </span>
-          </div>
-
-          <div className="mt-6 grid gap-3 md:grid-cols-3">
-            <div className="rounded-md bg-surface-muted p-4">
-              <UserRound aria-hidden="true" className="size-4 text-accent" />
-              <p className="mt-3 text-sm text-muted-foreground">Tecnico</p>
-              <p className="font-medium">{service.technicianName}</p>
-            </div>
-            <div className="rounded-md bg-surface-muted p-4">
-              <MapPin aria-hidden="true" className="size-4 text-accent" />
-              <p className="mt-3 text-sm text-muted-foreground">Ubicacion</p>
-              <p className="font-medium">{service.address}</p>
-            </div>
-            <div className="rounded-md bg-surface-muted p-4">
-              <Camera aria-hidden="true" className="size-4 text-accent" />
-              <p className="mt-3 text-sm text-muted-foreground">Evidencias</p>
-              <p className="font-medium tabular-nums">
-                {service.evidenceCount} archivos mock
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-8">
-            <h2 className="text-lg font-semibold">Flujo de campo</h2>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-              {fieldFlow.map(([label, Icon, detail]) => (
-                <button
-                  className="flex min-h-28 flex-col items-start justify-between rounded-lg border border-border bg-background p-4 text-left text-sm transition-[border,background,transform] duration-200 hover:border-accent hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring active:scale-[0.99]"
-                  key={label}
-                  type="button"
-                >
-                  <Icon
-                    aria-hidden="true"
-                    className="size-5 text-accent-strong"
-                  />
-                  <span>
-                    <span className="block font-semibold">{label}</span>
-                    <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                      {detail}
-                    </span>
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="mt-8 grid gap-4 lg:grid-cols-2">
-            <section className="rounded-lg border border-border bg-background p-4">
-              <h3 className="font-semibold">Trabajo realizado</h3>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                Espacio preparado para describir actividades ejecutadas,
-                repuestos, pruebas y resultado operativo.
-              </p>
-            </section>
-            <section className="rounded-lg border border-border bg-background p-4">
-              <h3 className="font-semibold">Hallazgos y recomendaciones</h3>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                {service.findingsCount} hallazgos mock registrados. Las
-                recomendaciones reales se vincularan al informe aprobado.
-              </p>
-            </section>
-          </div>
-        </article>
-
-        <aside className="space-y-4">
-          <section className="rounded-lg border border-border bg-card p-5">
-            <h2 className="text-lg font-semibold">Trazabilidad</h2>
-            <ol className="mt-4 space-y-3">
-              {serviceTimeline.map((item) => (
-                <li className="flex gap-3 text-sm" key={item}>
-                  <span className="mt-1.5 size-2 rounded-full bg-accent" />
-                  <span className="leading-6 text-muted-foreground">
-                    {item}
-                  </span>
-                </li>
-              ))}
-            </ol>
-          </section>
-
-          <section className="rounded-lg border border-warning/25 bg-warning-soft p-5 text-warning-foreground">
-            <TriangleAlert aria-hidden="true" className="size-5" />
-            <h2 className="mt-3 font-semibold">Pendiente de firma</h2>
-            <p className="mt-2 text-sm leading-6">
-              La firma es visual en esta iteracion. En produccion debe validar
-              consentimiento, identidad y auditoria.
-            </p>
-          </section>
-        </aside>
+    <div className="space-y-8">
+      <PageHeader title={service.subject} description={client?.name} />
+      <ServiceStatusBadge status={service.status} />
+      <section className="grid gap-6 border-b border-border pb-6 md:grid-cols-2">
+        <p className="whitespace-pre-wrap break-words text-sm leading-6">
+          {service.description || "Sin descripcion adicional."}
+        </p>
+        <dl className="space-y-2 text-sm">
+          <dt className="text-muted-foreground">Programacion (Bogota)</dt>
+          <dd>{dateLabel(service.scheduled_at)}</dd>
+          <dt className="text-muted-foreground">Cliente</dt>
+          <dd>
+            <Link
+              className="underline"
+              href={`/app/clients/${service.client_id}`}
+            >
+              {client?.name || "Cliente"}
+            </Link>
+          </dd>
+        </dl>
       </section>
-
-      <div className="fixed inset-x-0 bottom-[4.7rem] z-20 px-4 lg:hidden">
-        <Button
-          className="w-full shadow-[0_8px_22px_rgba(11,13,13,0.18)]"
-          size="lg"
-          variant="accent"
-        >
-          <CheckCircle2 aria-hidden="true" className="size-4" />
-          Continuar servicio
-        </Button>
-      </div>
+      {assignable && (
+        <section className="max-w-xl space-y-4">
+          <h2 className="text-lg font-semibold">Asignacion</h2>
+          <SearchForm q={q} />
+          <ActionForm
+            action={assignService}
+            label={
+              service.status === "draft"
+                ? "Asignar servicio"
+                : "Reasignar servicio"
+            }
+            disabled={!technicians.length}
+          >
+            <input type="hidden" name="service_id" value={id} />
+            <SelectField
+              name="technician_id"
+              label="Responsable"
+              defaultValue={
+                history[0]?.ended_at === null
+                  ? history[0].technician_membership_id
+                  : ""
+              }
+            >
+              <option value="" disabled>
+                Seleccionar responsable
+              </option>
+              {technicians.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.profiles.display_name}
+                  {t.role === "OWNER" ? " (Propietario)" : ""}
+                </option>
+              ))}
+            </SelectField>
+          </ActionForm>
+        </section>
+      )}
+      <section className="flex flex-wrap gap-4">
+        {[
+          ...(service.status === "assigned"
+            ? [["in_progress", "Iniciar servicio"]]
+            : []),
+          ...(service.status === "in_progress"
+            ? [["completed", "Completar servicio"]]
+            : []),
+          ...(edit &&
+          ["draft", "assigned", "in_progress"].includes(service.status)
+            ? [["cancelled", "Cancelar servicio"]]
+            : []),
+        ].map(([status, label]) => (
+          <ActionForm key={status} action={transitionService} label={label}>
+            <input type="hidden" name="service_id" value={id} />
+            <input type="hidden" name="status" value={status} />
+          </ActionForm>
+        ))}
+      </section>
+      <section id="reports" className="space-y-5 border-t border-border pt-6">
+        <h2 className="text-lg font-semibold">Informe tecnico</h2>
+        {canWriteReport && (
+          <div className="max-w-3xl">
+            <ActionForm
+              key={draft?.id || "new"}
+              action={saveReport}
+              label={draft ? "Guardar borrador" : "Crear version del informe"}
+            >
+              <input type="hidden" name="service_id" value={id} />
+              <TextField
+                name="work_performed"
+                label="Trabajo realizado"
+                defaultValue={draft?.work_performed}
+              />
+              <TextField
+                name="findings"
+                label="Hallazgos"
+                defaultValue={draft?.findings}
+              />
+              <TextField
+                name="recommendations"
+                label="Recomendaciones"
+                defaultValue={draft?.recommendations}
+              />
+            </ActionForm>
+          </div>
+        )}
+        {draft &&
+          edit &&
+          ["completed", "report_generated"].includes(service.status) && (
+            <ActionForm action={finalizeReport} label="Finalizar informe">
+              <input type="hidden" name="report_id" value={draft.id} />
+              <label className="flex items-start gap-3 text-sm">
+                <input
+                  className="mt-1"
+                  type="checkbox"
+                  name="confirmed"
+                  value="yes"
+                  required
+                />
+                Confirmo el contenido. Esta version quedara inmutable.
+              </label>
+            </ActionForm>
+          )}
+        <p className="text-sm text-muted-foreground">
+          Carga de archivos, captura de firmas y PDF pendientes de habilitar.
+        </p>
+        {reports
+          .filter((r) => r.status === "finalized")
+          .map((r) => (
+            <details key={r.id} className="border-y border-border py-4">
+              <summary className="cursor-pointer font-medium">
+                Version {r.version} · {dateLabel(r.finalized_at)}
+              </summary>
+              <dl className="mt-4 space-y-3 text-sm">
+                {[
+                  ["Trabajo realizado", r.work_performed],
+                  ["Hallazgos", r.findings],
+                  ["Recomendaciones", r.recommendations],
+                ].map(([label, value]) => (
+                  <div key={label}>
+                    <dt className="font-semibold">{label}</dt>
+                    <dd className="mt-1 whitespace-pre-wrap break-words">
+                      {value || "Sin registro"}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </details>
+          ))}
+      </section>
+      <section className="border-t border-border pt-6">
+        <h2 className="text-lg font-semibold">Historial de asignaciones</h2>
+        <ol className="mt-4 space-y-3 text-sm">
+          {history.map((a) => (
+            <li key={a.id}>
+              <p>
+                {dateLabel(a.created_at)} ·{" "}
+                {a.ended_at ? "Reasignado" : "Actual"}
+              </p>
+              <p className="break-all text-xs text-muted-foreground">
+                Membresia: {a.technician_membership_id}
+              </p>
+            </li>
+          ))}
+        </ol>
+        {!history.length && (
+          <p className="mt-3 text-sm text-muted-foreground">Sin asignacion.</p>
+        )}
+      </section>
     </div>
   );
 }

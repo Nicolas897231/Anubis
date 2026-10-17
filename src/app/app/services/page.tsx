@@ -1,66 +1,69 @@
 import Link from "next/link";
-
-import { DataTable, type DataTableColumn } from "@/components/anubis/DataTable";
-import { FilterBar } from "@/components/anubis/FilterBar";
+import { Plus } from "lucide-react";
+import { requireTenant } from "@/lib/auth/context";
+import { listServices } from "@/lib/data/queries";
+import { states, type SearchParams } from "@/lib/data/validation";
 import { PageHeader } from "@/components/anubis/PageHeader";
-import { ServiceCard } from "@/components/anubis/ServiceCard";
-import { ServiceStatusBadge } from "@/components/anubis/ServiceStatusBadge";
+import {
+  Pager,
+  SearchForm,
+  SelectField,
+  ServiceList,
+} from "@/components/anubis/Operational";
 import { Button } from "@/components/ui/button";
-import { services } from "@/lib/mock-data";
-import type { ServiceSummary } from "@/types/domain";
-
-const columns: DataTableColumn<ServiceSummary>[] = [
-  {
-    header: "Servicio",
-    cell: (service) => (
-      <div>
-        <Link
-          className="font-semibold text-foreground hover:underline"
-          href={`/app/services/${service.id}`}
-        >
-          {service.code}
-        </Link>
-        <p className="mt-1 text-sm text-muted-foreground">{service.subject}</p>
-      </div>
-    ),
-  },
-  {
-    header: "Cliente",
-    cell: (service) => service.clientName,
-  },
-  {
-    header: "Tecnico",
-    cell: (service) => service.technicianName,
-  },
-  {
-    header: "Estado",
-    cell: (service) => <ServiceStatusBadge status={service.status} />,
-  },
-  {
-    header: "Fecha",
-    cell: (service) => (
-      <span className="tabular-nums">{service.scheduledFor}</span>
-    ),
-  },
+const labels = [
+  "Borrador",
+  "Asignado",
+  "En proceso",
+  "Finalizado",
+  "Informe finalizado",
+  "Cancelado",
 ];
-
-export default function ServicesPage() {
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const { membership } = await requireTenant();
+  const params = await searchParams;
+  const data = await listServices(params);
+  const status =
+    typeof params.status === "string" &&
+    states.includes(params.status as (typeof states)[number])
+      ? params.status
+      : "";
   return (
     <div className="space-y-6">
       <PageHeader
-        actions={<Button variant="accent">Nuevo servicio</Button>}
-        description="Listado visual con mock data. Los filtros reales deberan preservar tenant, rol y estado en servidor."
         title="Servicios"
+        actions={
+          membership.role !== "TECHNICIAN" && (
+            <Button asChild variant="accent">
+              <Link href="/app/services/new">
+                <Plus className="size-4" />
+                Nuevo servicio
+              </Link>
+            </Button>
+          )
+        }
       />
-      <FilterBar />
-      <div className="hidden md:block">
-        <DataTable columns={columns} data={services} />
-      </div>
-      <div className="grid gap-3 md:hidden">
-        {services.map((service) => (
-          <ServiceCard key={service.id} service={service} />
-        ))}
-      </div>
+      <SearchForm q={data.q}>
+        <SelectField
+          name="status"
+          label="Estado"
+          defaultValue={status}
+          required={false}
+        >
+          <option value="">Todos</option>
+          {states.map((s, i) => (
+            <option value={s} key={s}>
+              {labels[i]}
+            </option>
+          ))}
+        </SelectField>
+      </SearchForm>
+      <ServiceList rows={data.rows} />
+      <Pager path="/app/services" {...data} status={status} />
     </div>
   );
 }

@@ -1,264 +1,118 @@
 # Local Deployment
 
-This guide deploys ANUBIS on a clean Ubuntu Server LTS inside the LAN using Docker Compose, a private Docker network, and Caddy as the HTTPS reverse proxy for `https://anubis.snti.local`.
+Fecha: 2026-10-15. Esta guia actualiza el laboratorio existente; no reinstala Docker ni toca Guardian.
 
-## Target Topology
+## Topologia
 
-```text
-Windows client
-  |
-  | hosts or LAN DNS resolves anubis.snti.local
-  v
-Ubuntu Server LAN IP
-  |
-  v
-Caddy :443
-  |
-  v
-private Docker network
-  |
-  v
-anubis-web Next.js standalone :3000
+Windows hosts/DNS -> https://anubis.snti.local -> Caddy :443 -> anubis-web :3000, red Docker privada.
+Guardian usa :80. Mantener Caddy con solo 443 publicado y el bloque global auto_https disable_redirects al principio del Caddyfile. IP LAN solamente en hosts/DNS, nunca en codigo.
+
+Phase 0 fue validada en Ubuntu. Esta nueva version Phase 1 requiere rebuild y smoke test propios. No se aplico remotamente desde esta sesion.
+
+## Publicar Cambios En GitHub
+
+En PowerShell, revisar antes de incluir archivos. Nunca agregar .env, passwords, certificados privados, tokens ni service_role.
+
+```powershell
+cd D:\Anubis
+git status --short
+git diff --check
+git add src supabase tests docs package.json package-lock.json vitest.config.mts compose.yaml deploy/caddy/Caddyfile .gitignore .env.example README.md
+git diff --cached --stat
+git commit -m "Implement Anubis phase 1 data and authentication"
+git push
 ```
 
-No LAN IP is hardcoded in code, Docker, Compose, Caddy, or Next.js. If the Ubuntu IP changes, update only the Windows `hosts` entry or LAN DNS record.
+El remote debe ser el repositorio del usuario ya configurado. No se hizo commit/push automatico. Dejar intacto cualquier archivo no relacionado; hay un archivo sin seguimiento anterior a este trabajo que no pertenece a Phase 1.
 
-## Ubuntu Preparation
+## Supabase Primero
 
-From the Ubuntu server:
+Seguir AUTH.md para crear un proyecto de PRUEBAS, enlazar CLI, hacer db push --dry-run y aplicar migraciones. La app no crea la base automaticamente. No resetear produccion ni editar schema manualmente desde SQL Editor.
+
+Configurar correo, confirmacion, TOTP y URLs exactas. El navegador debe resolver el FQDN dentro de la LAN y confiar en Caddy. No hacen falta IP publica, puertos DB publicados ni Supabase self-hosted.
+
+## Actualizar Ubuntu
+
+Usar el usuario propietario del checkout (nicolas), no alternar root con archivos de usuario. Si hay permisos incorrectos, un administrador debe corregir solo el checkout concreto tras revisar propietario; no aplicar chmod 777.
 
 ```bash
-sudo apt update
-sudo apt upgrade -y
-sudo apt install -y ca-certificates curl gnupg git
+cd /opt/anubis/Anubis
+git status --short
+git diff -- compose.yaml deploy/caddy/Caddyfile
 ```
 
-Install Docker Engine from Docker's official repository:
+Si quedan las ediciones locales previas de Caddy/Compose, preservarlas antes de pull. Los archivos nuevos ya incluyen el ajuste de 443; no reponer automaticamente la version antigua.
 
 ```bash
-sudo install -m 0755 -d /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-sudo chmod a+r /etc/apt/keyrings/docker.gpg
-
-echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-  $(. /etc/os-release && echo \"$VERSION_CODENAME\") stable" | \
-  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-sudo apt update
-sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+git stash push -m "Configuracion local Caddy antes de Phase 1" -- compose.yaml deploy/caddy/Caddyfile
+git pull --ff-only
 ```
 
-Verify:
+Omitir stash si no hay cambios. Si hay otros cambios, revisarlos antes de continuar. Conservar el stash como referencia, no ejecutar stash pop a ciegas.
+
+Crear .env solo si no existe. Nunca sobrescribir un .env configurado:
 
 ```bash
-docker --version
-docker compose version
+test -f .env || cp .env.example .env
+chmod 600 .env
+nano .env
 ```
 
-Optional non-root Docker usage:
+Valores necesarios:
 
-```bash
-sudo usermod -aG docker "$USER"
-newgrp docker
-```
-
-## Identify LAN IP
-
-Use one of:
-
-```bash
-hostname -I
-ip addr
-```
-
-Use that IP only in client DNS/hosts. Do not place it in project files.
-
-## Firewall
-
-Expose only SSH, HTTP, and HTTPS:
-
-```bash
-sudo ufw allow OpenSSH
-sudo ufw allow 80/tcp
-sudo ufw allow 443/tcp
-sudo ufw enable
-sudo ufw status verbose
-```
-
-Do not expose `3000`, PostgreSQL, Supabase, Redis, or future internal services directly to the LAN.
-
-## Project Setup
-
-Copy or clone the project to the server, for example:
-
-```bash
-cd /opt
-sudo mkdir -p anubis
-sudo chown "$USER":"$USER" anubis
-cd /opt/anubis
-```
-
-Then place the project contents there.
-
-Create the environment file:
-
-```bash
-cp .env.example .env
-```
-
-Expected local values:
-
-```text
+```dotenv
 APP_URL=https://anubis.snti.local
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_URL=https://TU_PROJECT_REF.supabase.co
+SUPABASE_PUBLISHABLE_KEY=TU_CLAVE_PUBLICABLE
 ```
 
-Only `NEXT_PUBLIC_*` values may be browser-visible. Future server-only secrets must not use that prefix and must not be committed.
-
-## Start
+La publishable key no es service_role. No imprimir el contenido de .env en terminal/chat. APP_URL debe coincidir exactamente con el origen del navegador para Server Actions.
 
 ```bash
-docker compose -f compose.yaml up -d --build
+sudo docker compose -f compose.yaml config --quiet
+sudo docker compose -f compose.yaml run --rm --no-deps caddy caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+sudo docker compose -f compose.yaml build anubis-web
+sudo docker compose -f compose.yaml up -d
+sudo docker compose -f compose.yaml ps
+sudo docker compose -f compose.yaml logs --tail=80 anubis-web caddy
 ```
 
-Verify containers:
+No continuar si la validacion falla. up -d solo despues de build exitoso. No usar down -v ni borrar volumenes Caddy (contienen la CA). Nunca detener guardian-nginx para liberar :80.
 
-```bash
-docker compose -f compose.yaml ps
-docker compose -f compose.yaml logs -f anubis-web
-```
+## Windows Y TLS
 
-`anubis-web` is reachable only inside the Docker network. Caddy publishes only ports `80` and `443`.
-
-## Windows Hosts Resolution
-
-On the Windows client, edit as Administrator:
+Editar como administrador C:\Windows\System32\drivers\etc\hosts:
 
 ```text
-C:\Windows\System32\drivers\etc\hosts
+IP_LAN_ACTUAL_DEL_SERVIDOR anubis.snti.local
 ```
 
-Example only:
+Despues ejecutar ipconfig /flushdns. Si ya funciona el FQDN no cambiarlo.
 
-```text
-192.168.1.50 anubis.snti.local
+Si la CA no esta instalada, exportar solo root.crt de Caddy mediante compose cp y transferir por SSH verificando host key. Nunca copiar root.key. Instalar solo la CA del servidor propio, verificando su huella:
+
+```powershell
+certutil -hashfile .\anubis-local-ca.crt SHA256
+certutil -addstore -f Root .\anubis-local-ca.crt
+curl.exe --ssl-revoke-best-effort https://anubis.snti.local/api/health
 ```
 
-Replace the IP with the current Ubuntu LAN IP. For mobile devices, prefer router DNS, Pi-hole, AdGuard Home, or another LAN DNS server.
+La excepcion de revocacion es por solicitud para CA interna; sigue verificando cadena/nombre. No usar -k ni desactivar controles TLS globales. La instalacion de raiz amplifica confianza: verificar origen antes de confiarla. Esta CA ya fue instalada en la PC de Nicolas.
 
-## Health Check
+## Smoke Test
 
-Before trusting the local CA:
+- Health devuelve status ok; solo verifica proceso, NO DB/Auth.
+- /app/dashboard sin sesion redirige a login.
+- Registro propio -> correo confirmado -> onboarding -> TOTP -> dashboard.
+- Crear cliente, servicio, asignarse como OWNER, iniciar, completar, guardar/finalizar informe.
+- Crear segundo tenant ficticio y probar aislamiento y roles tambien via Data API.
+- Reiniciar contenedores y verificar persistencia en Supabase y refresh de sesion.
+- Probar login/confirmacion/recovery desde movil con DNS y CA configurados.
 
-```bash
-curl -k https://anubis.snti.local/api/health
-```
+No hay password demo ni datos demo cargados por migraciones.
 
-Expected response:
+## Rollback Y Operacion
 
-```json
-{ "status": "ok" }
-```
+Conservar imagen/tag previo antes de reemplazarlo y backups DB antes de migrar. Rollback de imagen no revierte schema automaticamente; no borrar datos ni ejecutar migraciones inversas improvisadas. Las seis migraciones iniciales solo agregan el nucleo nuevo.
 
-After trusting the Caddy CA:
-
-```bash
-curl https://anubis.snti.local/api/health
-```
-
-## Trust The Local HTTPS CA
-
-Caddy uses `tls internal` for the `.local` lab hostname. Export the root CA:
-
-```bash
-docker compose -f compose.yaml cp caddy:/data/caddy/pki/authorities/local/root.crt ./anubis-local-ca.crt
-```
-
-Windows:
-
-1. Open `anubis-local-ca.crt`.
-2. Install Certificate.
-3. Choose Local Machine.
-4. Place it in Trusted Root Certification Authorities.
-
-macOS:
-
-1. Import `anubis-local-ca.crt` into System Keychain.
-2. Set it to Always Trust.
-
-Linux:
-
-```bash
-sudo cp anubis-local-ca.crt /usr/local/share/ca-certificates/anubis-local-ca.crt
-sudo update-ca-certificates
-```
-
-Android:
-
-1. Copy `anubis-local-ca.crt` to the device.
-2. Install it from Settings > Security > Encryption and credentials.
-3. Browser testing should trust the certificate after installation.
-
-iPhone/iPad:
-
-1. Send `anubis-local-ca.crt` to the device.
-2. Install the profile from Settings.
-3. Enable full trust in Settings > General > About > Certificate Trust Settings.
-
-Do not permanently recommend bypassing certificate warnings.
-
-## Auto-Start
-
-Compose uses `restart: unless-stopped` for both services. Docker starts automatically after installation on Ubuntu, and containers return after reboot unless manually stopped:
-
-```bash
-sudo systemctl status docker
-docker compose -f compose.yaml ps
-```
-
-## Operations
-
-Stop:
-
-```bash
-docker compose -f compose.yaml down
-```
-
-Logs:
-
-```bash
-docker compose -f compose.yaml logs -f anubis-web
-docker compose -f compose.yaml logs -f caddy
-```
-
-Update:
-
-```bash
-docker compose -f compose.yaml up -d --build
-```
-
-Rollback by source:
-
-1. Restore the previous known-good source version.
-2. Rebuild:
-
-```bash
-docker compose -f compose.yaml up -d --build
-```
-
-Rollback by image tag:
-
-```bash
-docker tag anubis-web:local anubis-web:previous
-```
-
-Then temporarily point `compose.yaml` to `anubis-web:previous` if a rebuild must be avoided.
-
-## Production Notes For Later
-
-- Replace `tls internal` with a real domain and ACME certificate before internet exposure.
-- Add HSTS only after the final HTTPS hostname and certificate trust path are stable.
-- Add managed secrets, image scanning, CI security gates, backups, restore tests, and monitoring before production.
-- Do not publish internal databases or future storage services to the LAN.
+Restringir firewall a las redes necesarias. ANUBIS no publica 3000 ni PostgreSQL. Revisar aparte MySQL de Guardian, que aparecia publicado en todas las interfaces; no se modifico como parte de este trabajo. Antes de internet: dominio/certificado publico, SMTP, rate limiting, backups probados, monitoreo y privacidad aprobada.

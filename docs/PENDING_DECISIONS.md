@@ -1,43 +1,35 @@
 # Pending Decisions
 
-## Source Document Names
+Fecha: 2026-10-15. Las decisiones de modelo resueltas estan en DECISIONS.md.
 
-The pasted brief referenced:
+## Bloqueantes De Integracion
 
-- `D:\Anubis\ANUBIS_Especificacion_Maestra_v1.0`
-- `D:\Anubis\SN_TI_ANUBIS_Conversacion_Maestra.md`
+- Crear proyecto Supabase de pruebas: cuenta, region y presupuesto los elige Nicolas. No se creo automaticamente ni se self-hosteo.
+- Aplicar migraciones con CLI; comprobar roles/default privileges y comportamiento real de PostgREST.
+- SMTP propio, confirmacion de email, templates de recovery, TOTP, limites Auth y prueba extremo a extremo.
+- Validar Docker/HTTPS de Phase 1 en Ubuntu; Phase 0 ya fue validada.
+- Verificar concurrencia multi-conexion de seats y versiones en PostgreSQL hosted; PGlite no la reproduce.
 
-The available files were:
+## Producto Y Seguridad
 
-- `D:\Anubis\ANUBIS_Especificacion_Maestra_v1.0.docx`
-- `D:\Anubis\SN_TI_ANUBIS_Conversacion_Maestra (1).md`
+- Ratificar la propuesta de arranque SOLO, 1 seat, trial de 14 dias. Es un default de laboratorio, no una oferta comercial aprobada.
+- Invitacion actual: registro en DB y aceptacion por correo verificado; NO entrega email. Definir proveedor/plantilla/cola antes de prometer envio.
+- Rate limiting distribuido para invitaciones, onboarding y mutaciones; CAPTCHA/abuse control para auth publica. Supabase limita Auth, no todas nuestras RPC.
+- Reautenticacion reciente para operaciones criticas; TOTP existe, no una politica completa de step-up por antiguedad.
+- Trusted devices, maximo de sesiones y revocacion. No fingerprinting. Access tokens pueden seguir validos hasta su expiracion tras signout.
+- Recuperacion de MFA perdido y transferencia OWNER con procedimiento auditado; no bypass improvisado.
+- Retencion por entidad, borrado excepcional, exportacion y derechos del titular con asesoria legal.
+- Buckets privados, validacion real de archivos, antivirus cuando aplique, URLs firmadas cortas y consentimiento antes de captura de firma.
+- CSP con nonce/hashes en vez de unsafe-inline en produccion; ASVS L2 es objetivo, no certificacion.
+- Backups, restore drill, observabilidad, CI/CD, gestor de secretos y dominios definitivos.
 
-Those available files were used as the source of truth for this iteration.
+## Escala Y UX
 
-## Business And Legal
+- Paginacion de grandes catalogos de supervisores y de organizaciones por usuario; limites actuales explicitos en PERFORMANCE.md.
+- Reasignacion una vez iniciado un servicio requiere un flujo aprobado; hoy se reactiva el tecnico o se cancela, sin borrar historial.
+- Confirmar metrica/scope del supervisor (servicios creados por el o asignados a su equipo).
+- Aprobacion humana del ERD y matriz entregados; revisados internamente e implementados, no fingir aprobacion externa.
 
-- Exact legal name/NIT for S&N TI.
-- Privacy, PQR, and support channels.
-- Final privacy, terms, cookies, and contact pages.
-- Final domain and hosting region.
-- Provider list and subprocessor documentation.
-- Final retention matrix.
-- Legal review of policies and terms.
-- Trademark and software registration strategy.
+## Legal Y Marca
 
-## Technical
-
-- Final vector SVG exports for the ANUBIS logo system, if S&N TI wants vector delivery in addition to the current high-quality raster exports.
-- Final ERD.
-- RLS policies.
-- Role permission matrix.
-- Service state machine.
-- Storage bucket structure and signed URL lifetime.
-- PDF generation engine.
-- MFA/passkey rollout policy.
-- Device/session limits and trusted device implementation.
-- CI/CD provider and deployment environments.
-- Owner for local DNS and trusted internal CA distribution on S&N TI devices.
-- Final public domain and ACME/TLS policy.
-- HSTS rollout timing after HTTPS is stable.
-- Secret manager strategy for future server-only keys.
+Nombre legal/NIT, canales de privacidad/PQR/soporte, textos legales, dominio publico, region y subencargados siguen pendientes. Los raster de alta calidad del usuario se conservan; exportar SVG es opcional y no bloquea esta fase.

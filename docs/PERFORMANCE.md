@@ -1,64 +1,24 @@
 # Performance
 
-## Baseline Goals
+Fecha: 2026-10-15.
 
-- LCP <= 2.5s when measured on target hardware.
-- INP <= 200ms.
-- CLS <= 0.1.
-- Fast enough for mid-range mobile devices in field conditions.
+## Objetivos Sin Medicion Productiva
 
-## Current Optimizations
+LCP <= 2.5s, INP <= 200ms, CLS <= 0.1. No se afirma cumplimiento: falta Lighthouse y medicion con Auth/DB hosted en dispositivos de campo.
 
-- Prefer Server Components by default.
-- Client Components are limited to interactive UI such as cookie consent and dialogs.
-- No heavy animation library was added.
-- No 3D, particles, parallax, or scroll hijacking.
-- Fonts use Next.js font optimization through Geist.
-- Images use `next/image` with intrinsic dimensions.
-- Hero/brand images use the Next.js 16 `preload` prop instead of deprecated `priority`.
-- Static assets are local; no remote image domains are configured.
-- Docker uses standalone output to reduce runtime files.
+## Implementacion
 
-## Image Notes
+- Server Components; cliente limitado a formularios/estados MFA y fecha local.
+- Selecciones explicitas sin SELECT * de PostgREST; SQL usa filas completas solo dentro de RPC puntuales con PK.
+- Listas clients/services/reports/team/admin: 25 por pagina, hasta pagina 400; ampliar a keyset si el volumen lo requiere.
+- Dashboard: 4 conteos y lista acotada, no N+1. Nombres del equipo resueltos en una consulta batch.
+- Consulta de clientes/responsables para formularios: 50 resultados y busqueda; supervisores: 100 max.
+- Onboarding: 100 membresias/organizaciones y 50 invitaciones; detalle: 25 asignaciones y 20 versiones recientes. Reportes globales si se necesitan versiones anteriores. Estos limites evitan cargas completas, no son una UX ilimitada.
+- Indices compuestos por tenant y filtros; unicidad parcial de asignacion actual y borrador.
+- DAL React cache por render, sin cache compartida de datos autenticados. Esto reduce riesgo de filtracion, no elimina el coste Auth por request.
+- connection() garantiza variables runtime y autenticacion fuera del prerender. Suspense delimita shell.
+- Imagenes de marca de alta calidad conservadas con next/image; dimensiones intrinsecas; sin nuevas librerias pesadas de animacion/PDF.
 
-High-quality raster brand assets are in `public/brand`.
+## Compromisos
 
-The current logo lockups are around 1 MB each as source assets. They are rendered through `next/image`, so the self-hosted Next server can optimize responsive responses at runtime. On the Ubuntu target, verify that image optimization cache writes correctly inside the container.
-
-Generated app icons:
-
-- `public/brand/anubis-app-icon.png`: 512 x 512.
-- `src/app/icon.png`: 512 x 512.
-- `src/app/apple-icon.png`: 180 x 180.
-- `src/app/favicon.ico`: 16/32/48 family.
-
-## Bundle Concerns
-
-Current dependencies are intentionally small:
-
-- Radix Dialog/Slot.
-- Supabase JS prepared for future use.
-- Lucide icons.
-- Tailwind utility runtime generated at build.
-- No charting, animation, map, PDF, AI, or payment SDKs yet.
-
-## Client Component Concerns
-
-Keep future client components scoped. Do not move layout/page shells to client components unless there is a clear interaction need.
-
-## Lighthouse
-
-Lighthouse was not executed in this environment. Run it on the Ubuntu deployment URL after Docker and Caddy are running:
-
-```bash
-npx lighthouse https://anubis.snti.local --view
-```
-
-If the local CA is not trusted by the runner, execute Lighthouse from a browser profile that trusts `anubis-local-ca.crt`.
-
-## Pending Performance Validation
-
-- Measure Lighthouse on `/`.
-- Measure responsive interaction on `/app/services/demo-service-001`.
-- Verify Next image optimization cache in the Docker runtime.
-- Re-check bundle after Phase 1 introduces auth, database calls, storage, and reporting.
+Locks organization serializan mutaciones y seat checks: correcto para esta fase, medir contencion antes de escala. OFFSET profundo y count exact pueden degradarse con tablas grandes. No se ejecutaron EXPLAIN/benchmark sobre datos productivos. Probar cache de imagenes dentro de Docker non-root y latencia de region Supabase.

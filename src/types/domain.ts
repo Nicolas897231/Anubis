@@ -4,7 +4,12 @@ export type Role =
 export type MembershipStatus = "invited" | "active" | "suspended" | "removed";
 
 export type ServiceStatus =
-  "assigned" | "in_progress" | "completed" | "report_generated" | "cancelled";
+  | "draft"
+  | "assigned"
+  | "in_progress"
+  | "completed"
+  | "report_generated"
+  | "cancelled";
 
 export type ServicePriority = "normal" | "high" | "urgent";
 

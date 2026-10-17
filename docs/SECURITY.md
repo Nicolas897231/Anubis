@@ -1,62 +1,53 @@
-# ANUBIS Security Notes
+# Security
 
-## Baseline
+Fecha: 2026-10-15. Baseline deseado OWASP ASVS L2; NO certificado ni auditado integralmente. Solo laboratorio hasta cerrar integracion y controles pendientes.
 
-Target posture: OWASP ASVS Level 2. This foundation avoids pretending frontend checks are security controls.
+## Fronteras Y Amenazas
 
-## Principles
+Activos: identidad, sesiones, clientes, servicios, informes y auditoria. Fronteras: navegador no confiable -> Server Actions/DAL -> Supabase Auth/Data API -> PostgreSQL/RLS. Infra: Caddy -> Next en red Docker privada; Supabase cloud externo por TLS. Platform admin es frontera separada, sin acceso automatico a contenido.
 
-- Deny by default.
-- Least privilege.
-- Defense in depth.
-- Never trust tenant identifiers sent by the browser.
-- Never put service-role keys or secrets in browser code.
-- Keep storage private and use signed URLs in future implementation.
-- Preserve auditability for role, plan, session, support, and service lifecycle actions.
+Amenazas probadas localmente: tenant hopping por UUID/cookie, IDOR de cliente/servicio, escalamiento de rol, omision de MFA, acceso suspendido/vencido, DML directo, invitacion ajena/reusada, exceso de seats, edicion de informe finalizado, origen CSRF y redirects abiertos.
 
-## Implemented In This Iteration
+## Controles Implementados
 
-- Security headers in `next.config.ts`:
-  - `Content-Security-Policy`
-  - `X-Content-Type-Options`
-  - `Referrer-Policy`
-  - `Permissions-Policy`
-  - `X-Frame-Options`
-  - `X-Accel-Buffering`
-- Local Docker deployment uses Caddy as the only public LAN entry point and keeps the Next.js container on a private Docker network.
-- `/api/health` exposes only a minimal no-cache status response.
-- Supabase browser client factory only reads `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
-- Mock data is separated from authentication and authorization.
-- No database migrations or permissive RLS shortcuts were created.
-- No secrets were added to source.
+- Supabase SDK valida identidad y claims; no hashes propios, tokens propios ni rol de user_metadata.
+- DAL en cada pagina/accion; no confiar solo en layout/proxy o controles UI.
+- RLS en 13 tablas; FK compuestas; SECURITY DEFINER con search_path vacio y grants restringidos.
+- Zod en inputs/output DB, parametros RPC estructurados, listas paginadas, sin SQL concatenado con entradas del usuario.
+- Metadatos de auditoria limitados a claves autorizadas, sin PII libre ni secretos.
+- Cookies HttpOnly/Secure/SameSite, Origin exacto, redirect local permitido, no-store en superficies autenticadas.
+- OWNER/ADMIN/platform requieren aal2; activacion seats atomica; historial no borrado.
+- No service_role en servidor ni cliente. La config rechaza secret keys y JWT legacy privilegiados.
+- Sin uploads, URLs publicas ni acceso de soporte universal.
+- Docker non-root, puerto app interno, Caddy solo 443 para coexistir con Guardian en 80.
+- CSP existente, nosniff, frame denial, restricciones de permisos; imagenes de marca locales.
 
-## Required Before Production
+## PII Minima
 
-- Approved ERD and PostgreSQL constraints.
-- RLS policies for every tenant-scoped table.
-- Server-side authorization for every protected action.
-- Supabase Auth integration with MFA for privileged roles.
-- Rate limiting for auth and sensitive endpoints.
-- CSRF strategy for state-changing cookie-backed requests.
-- CSP tuned for deployed assets and providers.
-- Private storage buckets, MIME/size validation, malware scanning strategy.
-- Audit event model and retention policy.
-- Secret scanning and dependency scanning in CI.
+| Campo                           | Proposito / Necesidad                 | Owner                          | Retencion                                                  |
+| ------------------------------- | ------------------------------------- | ------------------------------ | ---------------------------------------------------------- |
+| Auth email/password             | Autenticacion                         | Usuario / Supabase Auth        | Politica pendiente; no duplicar password                   |
+| profile.display_name            | Identificar integrante                | Usuario                        | Conservar referencias historicas; revision legal pendiente |
+| client name/phone/email/address | Coordinar servicio; contacto opcional | Tenant                         | Archivo conserva historial; plazo pendiente                |
+| client notes/report text        | Documentar trabajo                    | Tenant                         | Evitar datos sensibles; plazo pendiente                    |
+| signer_name/consent_version     | Metadatos de recepcion futura         | Tenant                         | No capturar firma real hasta aprobacion                    |
+| audit actor UUID/timestamps     | Trazabilidad de acciones              | Tenant/plataforma segun evento | Plazo y acceso operacional pendiente                       |
 
-## Known Current Risk
+No cedula, nacimiento, genero, contactos del dispositivo, biometria ni GPS. No purga automatica sin politica; no confundir RESTRICT con cumplimiento legal de retencion.
 
-`npm audit --omit=dev` reports 0 production dependency vulnerabilities.
+## Riesgos Pendientes
 
-The full development audit reports 5 high severity advisories in the linting chain:
+- Proyecto Supabase inexistente: no se verificaron JWT reales, gateway, SMTP, TOTP, refresh ni sesiones extremo a extremo.
+- Rate limiting distribuido de RPC/invitaciones/onboarding pendiente. Limites Auth dependen del proyecto; no se implemento contador en memoria ni se afirma proteccion completa anti-bot.
+- Access JWT sigue potencialmente vigente hasta exp tras signout. Max sesiones, trusted devices y reautenticacion reciente pendientes.
+- CSP permite unsafe-inline por baseline Next; nonce/hash requiere validacion adicional. No marcar mitigacion XSS completa.
+- Sin storage/archivos/consentimiento aprobado; metadatos no equivalen a evidencia real.
+- Default SOLO trial requiere aprobacion comercial. Region, encargados, textos legales y retencion pendientes.
+- Backups, restauracion, alertas, revision independiente y pruebas concurrentes hosted pendientes.
+- Revisar en servidor coexistente la publicacion de MySQL de Guardian; ANUBIS no la modifico.
 
-```text
-eslint-config-next@16.4.0
-@next/eslint-plugin-next@16.4.0
-fast-glob@3.3.1
-micromatch@4.0.8
-braces@3.0.3
-```
+## Verificacion Y Alcance
 
-The advisory is the `braces <=3.0.3` stack-exhaustion DoS issue. `braces@3.0.3` and `eslint-config-next@16.4.0` are currently the latest versions checked for this project, and `npm audit fix --force` proposes moving to `eslint-config-next@14.2.35`, which is a breaking downgrade for the current Next.js 16 toolchain. That forced fix was intentionally not applied.
+Se uso revision estatica y pruebas locales autorizadas con fixtures. PGlite ejecuta SQL real, pero auth.jwt es un shim de claims. Vitest simula respuestas SDK y prueba que la DAL las respeta; no es un ataque ni validacion criptografica del proveedor. No se hicieron scans ofensivos externos, pentest completo ni certificacion ASVS.
 
-The current CSP is a non-nonce policy to preserve static/PPR compatibility. Revisit nonce-based CSP only when routes that need it can accept dynamic rendering tradeoffs.
+Ver TEST_REPORT.md para comandos/resultados efectivos. No ingresar datos reales ni exponer internet antes del cierre.

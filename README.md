@@ -1,103 +1,43 @@
 # ANUBIS
 
-Gestion inteligente de servicios en campo.
+by S&N TI Soluciones Digitales. Servicios tecnicos y evidencia de operacion, no ERP.
 
-by S&N TI Soluciones Digitales
+**Estado:** Phase 0 completada. Phase 1 implementada en codigo, bloqueada por integracion Supabase pendiente. No hay credenciales demo.
 
-## Estado
+## Empezar
 
-ANUBIS esta en Phase 0: fundacion profesional de producto. La app contiene branding oficial, landing publica, login mock, shell administrativo, dashboard, servicios, detalle de servicio, estados secundarios, PWA baseline, headers de seguridad, Dockerfile, Docker Compose, Caddy y documentacion de handoff.
+AI / Developer continuation:
 
-No incluye todavia autenticacion real, base de datos productiva, PostgreSQL, RLS, PDF real, pagos, WhatsApp, IA, GPS, QR ni funcionalidades de Fase 1.
+1. Read [AGENTS.md](AGENTS.md).
+2. Read [docs/CURRENT_STATE.md](docs/CURRENT_STATE.md).
+3. Read [docs/NEXT_TASK.md](docs/NEXT_TASK.md).
 
-## Stack
+Do not read the entire documentation set unless required. For agents, NEXT_TASK controls which checks below apply; do not run the full gate automatically.
 
-- Next.js 16 App Router
-- React 19
-- TypeScript strict
-- Tailwind CSS v4
-- Componentes compatibles con shadcn/ui
-- Lucide Icons
-- Supabase preparado para futura integracion
-- Vitest + Testing Library
-- Docker Compose
-- Caddy como reverse proxy HTTPS local
-
-## Desarrollo
+Node 24 recomendado:
 
 ```powershell
 cd D:\Anubis
-npm install
-npm run dev
-```
-
-URL de desarrollo:
-
-```text
-http://localhost:3000
-```
-
-## Validacion
-
-```powershell
+npm ci
 npm run typecheck
 npm run lint
 npm test
-npm run format
+npm run test:db
 npm run build
 npm audit --omit=dev
-npm audit --audit-level=high
+npm run dev
 ```
 
-## Docker Local
+Para desarrollo Auth, APP_URL debe ser el origen exacto local; para Ubuntu, https://anubis.snti.local. Crear .env.local para desarrollo o .env para Docker a partir del ejemplo; no sobrescribir configuracion existente ni versionar secretos. Sin Supabase, login queda deshabilitado de forma intencional.
 
-Crear el entorno local:
+## Datos Y Seguridad
 
-```powershell
-copy .env.example .env
-```
+13 tablas con RLS, 6 migraciones, roles OWNER/ADMIN/SUPERVISOR/TECHNICIAN, operador plataforma separado. Server Components y RPC con JWT del usuario, sin service_role. Supabase cloud no fue creado automaticamente.
 
-Levantar:
+Tests DB crean un PostgreSQL WASM efimero con usuarios ficticios; nunca conectan a produccion. Auth/JWT hosted y correo requieren proyecto real. Evidencia/firma son metadatos; uploads/PDF y fases comerciales no estan habilitados.
 
-```powershell
-docker compose -f compose.yaml up -d --build
-```
+## Deploy
 
-Servicios:
+Ubuntu Docker Compose + Caddy interno :443; app :3000 privada. Guardian conserva :80. Ver LOCAL_DEPLOYMENT.md para GitHub, env, migraciones, rebuild y validacion. No ejecutar down -v ni borrar CA/DB para actualizar.
 
-- `caddy`: unico punto de entrada LAN en puertos `80` y `443`.
-- `anubis-web`: Next.js standalone interno en puerto `3000`, sin publicar directamente a la LAN.
-
-## Ubuntu Server LAN
-
-La URL canonica local es:
-
-```text
-https://anubis.snti.local
-```
-
-El cliente Windows debe resolver ese hostname mediante `hosts` o DNS LAN. La IP del servidor Ubuntu no esta hardcodeada en el proyecto.
-
-Guia completa:
-
-- `docs/LOCAL_DEPLOYMENT.md`
-
-## Documentacion
-
-Leer primero:
-
-- `docs/CURRENT_STATE.md`
-- `docs/PHASE_0_HANDOFF.md`
-- `docs/ARCHITECTURE.md`
-- `docs/DESIGN_SYSTEM.md`
-- `docs/SECURITY.md`
-- `docs/TEST_REPORT.md`
-- `docs/PERFORMANCE.md`
-- `docs/PENDING_DECISIONS.md`
-- `docs/PHASE_1_PLAN.md`
-
-## Siguiente Fase
-
-FASE 1: Domain Model, ERD, PostgreSQL and RLS.
-
-No iniciar Fase 1 sin aprobar el modelo de dominio, matriz de permisos, ERD, constraints, indices y politicas RLS.
+Marca raster de alta calidad suministrada por el usuario en public/brand. PWA manifest/iconos presentes, sin offline sync.
