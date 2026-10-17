@@ -36,29 +36,54 @@ git pull --ff-only
 bash deploy/local/preflight.sh
 ```
 
-Si hay cambios locales, preservarlos/revisarlos antes de pull siguiendo [LOCAL_DEPLOYMENT](LOCAL_DEPLOYMENT.md). No usar reset/clean, no sobreescribir .env. Detenerse si cualquier paso falla. El preflight es solo lectura y para primera instalacion: muestra recursos/puertos y exige Caddy existente, Docker accesible, Node >=20 y checkout sin enlace cloud. Node 24 recomendado; no instala Node ni cambia permisos Docker automaticamente.
+Si hay cambios locales, preservarlos/revisarlos antes de pull siguiendo [LOCAL_DEPLOYMENT](LOCAL_DEPLOYMENT.md). No usar reset/clean, no sobreescribir .env. Detenerse si cualquier paso falla. El preflight es solo lectura y para primera instalacion: muestra recursos/puertos y exige Caddy existente, Docker accesible y checkout sin enlace cloud. Node/npm NO se requieren en Ubuntu: Node ya esta en la imagen ANUBIS. La CLI nativa Supabase se instala despues del preflight; no se cambian permisos Docker automaticamente.
+
+Correccion 2026-10-17: el usuario reporto `BLOCKED: Missing command: node` en Ubuntu. Era una dependencia innecesaria del procedimiento npx, no un fallo del contenedor. Retirada del preflight y reemplazado npx por CLI nativa en esta guia. No instalar Node para resolverlo; publicar/descargar la correccion y repetir preflight.
+
+Verificacion dirigida de la correccion: Bash -n y cuatro casos simulados PASS. Se acepta host sin Node/npm/npx/CLI todavia; se conservan bloqueos por Docker inaccesible, Caddy ausente y puertos ocupados. No equivale a un preflight real PASS en Ubuntu; ese resultado sigue pendiente.
 
 Revisar RAM/disco disponibles considerando Guardian y las otras aplicaciones. Si falta capacidad, no iniciar el stack. Un PASS de preflight no demuestra capacidad bajo carga. No hay evidencia de recursos del servidor en esta sesion.
 
 ## 2. Iniciar Supabase Local
 
-CLI fijada en 2.121.0, consultada en npm el 2026-10-17. No requiere supabase login/link ni cuenta cloud. El checkout ya contiene config.toml: NO ejecutar init --force.
+CLI nativa fijada en 2.121.0, release oficial verificada el 2026-10-17. No requiere Node/npm, supabase login/link ni cuenta cloud. El checkout ya contiene config.toml: NO ejecutar init --force.
+
+Solo despues de revisar el preflight: si `supabase --version` ya devuelve 2.121.0, omitir instalacion. Si hay otra version, revisar antes de reemplazarla. Para primera instalacion Ubuntu amd64/arm64, descargar el paquete oficial y comprobar SHA256 antes de instalar. Requiere curl, dpkg, awk y sha256sum; ejecutar cada bloque solo si el anterior termino bien. Como root, se puede omitir sudo.
+
+```bash
+(
+  set -euo pipefail
+  arch=$(dpkg --print-architecture)
+  case "$arch" in amd64|arm64) ;; *) echo "Arquitectura no contemplada: $arch"; exit 1 ;; esac
+  download_dir=$(mktemp -d)
+  cd "$download_dir"
+  file="supabase_2.121.0_linux_${arch}.deb"
+  release="https://github.com/supabase/cli/releases/download/v2.121.0"
+  curl -fL "$release/$file" -o "$file"
+  curl -fL "$release/checksums.txt" -o checksums.txt
+  awk -v file="$file" '$2 == file { print; found=1 } END { if (!found) exit 1 }' checksums.txt | sha256sum -c -
+  sudo dpkg -i "./$file"
+  supabase --version
+)
+```
+
+La CLI orquesta los contenedores; no instala PostgreSQL ni Node como servicios del host. No ejecutar instalacion/arranque mientras el preflight tenga bloqueos sin revisar.
 
 Crear esta red solamente si no existe; si existe, preflight debe haber comprobado la opcion de loopback:
 
 ```bash
 docker network inspect anubis-supabase-lab >/dev/null 2>&1 || docker network create --driver bridge -o com.docker.network.bridge.host_binding_ipv4=127.0.0.1 anubis-supabase-lab
-npx --yes supabase@2.121.0 start --network-id anubis-supabase-lab
+supabase start --network-id anubis-supabase-lab
 bash deploy/local/verify-bindings.sh
 ```
 
-start puede mostrar claves: NO pegar su salida completa en chat, no usar --debug ni grabarla en Git/docs. Si la comprobacion de bindings falla, detener SOLO este laboratorio con `npx --yes supabase@2.121.0 stop`, sin --all ni --no-backup, y revisar antes de seguir. UFW por si solo no sustituye comprobar puertos publicados por Docker.
+start puede mostrar claves: NO pegar su salida completa en chat, no usar --debug ni grabarla en Git/docs. Si la comprobacion de bindings falla, detener SOLO este laboratorio con `supabase stop`, sin --all ni --no-backup, y revisar antes de seguir. UFW por si solo no sustituye comprobar puertos publicados por Docker.
 
 Aplicar/comprobar migraciones contra LOCAL, nunca resetear ni enlazar remoto:
 
 ```bash
-npx --yes supabase@2.121.0 migration up --local
-npx --yes supabase@2.121.0 migration list --local
+supabase migration up --local
+supabase migration list --local
 docker ps --filter network=anubis-supabase-lab --format 'table {{.Names}}\t{{.Ports}}'
 ```
 
@@ -66,7 +91,7 @@ Debe constar el conjunto de seis migraciones del repo. Si falla una migracion, d
 
 ## 3. Clave Local Y CA Existente
 
-Consultar `npx --yes supabase@2.121.0 status` solo en la terminal privada. Tomar Publishable key (o legacy anon si corresponde), NUNCA Secret ni service_role.
+Consultar `supabase status` solo en la terminal privada. Tomar Publishable key (o legacy anon si corresponde), NUNCA Secret ni service_role.
 Identificar en docker ps el gateway de API y su puerto INTERNO. Un ejemplo historico es supabase_kong_anubis:8000; usar el nombre/puerto realmente observados, no el puerto publicado 54321 ni localhost.
 
 ```bash
@@ -150,5 +175,7 @@ Esperado: {"status":"ok"}; no confirma DB/Auth. Probar tambien login/logout/refr
 - Supabase cloud no alojara automaticamente la aplicacion Next.js. Migraciones/configuracion y datos requieren un plan separado; este laboratorio no mueve datos a cloud.
 
 ## Fuentes
+
+[CLI nativa Linux](https://github.com/supabase/cli#install-the-cli), [release fijada 2.121.0](https://github.com/supabase/cli/releases/tag/v2.121.0).
 
 [Supabase local y binding loopback](https://supabase.com/docs/guides/local-development), [CLI y migraciones](https://supabase.com/docs/reference/cli/supabase-migration-up), [plantillas locales](https://supabase.com/docs/guides/local-development/customizing-email-templates), [Caddy import](https://caddyserver.com/docs/caddyfile/directives/import), [Node CA adicional](https://nodejs.org/api/cli.html#node_extra_ca_certsfile).

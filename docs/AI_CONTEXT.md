@@ -17,7 +17,7 @@ Ruta confirmada: Supabase local en Ubuntu primero; cloud diferido.
 ## CURRENT_BLOCKER
 
 Faltan validacion Supabase hosted y validacion del despliegue Phase 1.
-Bloqueo inmediato local: sin resultado real de recursos/puertos/permisos Ubuntu ni arranque del laboratorio.
+Ubuntu reporto `BLOCKED: Missing command: node`. Preflight corregido: Node vive en Docker; CLI Supabase nativa, sin Node/npm host. Falta publicar/descargar la correccion y repetir preflight; resto de requisitos no validado.
 Archivos preparados no equivalen a servicios instalados o Auth validado.
 
 ## CURRENT_TASK
@@ -34,6 +34,7 @@ Si no hay acceso remoto autorizado, pedir al usuario solo esa salida sanitizada.
 - Guiar publicacion/descarga revisada de los archivos preparados si faltan en Ubuntu.
 - Ejecutar/revisar preflight de solo lectura y registrar resultado real.
 - Identificar una correccion concreta si falla, sin aplicarla automaticamente fuera de alcance.
+- Correccion actual autorizada: quitar dependencia Node/npm del preflight y usar CLI nativa en la guia; sin cambios de contenedores.
 
 ## FORBIDDEN_SCOPE
 
@@ -45,8 +46,7 @@ Si no hay acceso remoto autorizado, pedir al usuario solo esa salida sanitizada.
 
 ## REQUIRED_DOCS
 
-- [LOCAL_SUPABASE_LAB](LOCAL_SUPABASE_LAB.md): solo seccion 1 y limites del laboratorio.
-- [LOCAL_LAB_VALIDATION](LOCAL_LAB_VALIDATION.md): resultado pendiente y evidencia nueva.
+- [LOCAL_SUPABASE_LAB](LOCAL_SUPABASE_LAB.md): secciones 1-2, correccion Node y CLI nativa.
 
 ## TARGET_FILES_OR_AREAS
 
@@ -61,7 +61,7 @@ targeted
 ## DOCS_TO_UPDATE
 
 - docs/AI_CONTEXT.md
-- docs/LOCAL_LAB_VALIDATION.md, solo con resultado/evidencia nuevos.
+- docs/LOCAL_SUPABASE_LAB.md, solo si cambia el procedimiento.
 
 ## DONE_WHEN
 
@@ -70,7 +70,7 @@ No inferir validacion Auth/DB/hosted del resultado.
 
 ## NEXT_IF_SUCCESS
 
-Cambiar este contrato a un unico paso: primer arranque de Supabase local y verificacion de bindings loopback.
+Cambiar este contrato a un unico paso: instalar/verificar CLI nativa 2.121.0 si falta; despues, primer arranque local y verificacion de bindings en su propio paso.
 No ejecutarlo dentro del preflight ni comenzar Phase 2.
 
 ## NEXT_IF_BLOCKED

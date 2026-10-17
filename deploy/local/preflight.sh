@@ -7,19 +7,25 @@ cd "$repo"
 fail() { printf 'BLOCKED: %s\n' "$*" >&2; exit 1; }
 
 [[ "$(uname -s)" == Linux ]] || fail 'Run this check on the Ubuntu server.'
-for tool in docker node npm ss free df openssl; do
+for tool in docker ss free df openssl; do
   command -v "$tool" >/dev/null || fail "Missing command: $tool"
 done
 [[ -f compose.yaml && -f supabase/config.toml ]] || fail 'Incomplete checkout.'
 [[ -f .env ]] || fail 'Existing ANUBIS .env missing; do not overwrite server configuration.'
 [[ ! -f supabase/.temp/project-ref ]] || fail 'Checkout linked to hosted. Use a separate, unlinked lab checkout; do not delete the link blindly.'
 
-node -e 'if (Number(process.versions.node.split(".")[0]) < 20) process.exit(1)' || fail 'CLI requires Node >=20; Node 24 is recommended for ANUBIS.'
 docker info >/dev/null 2>&1 || fail 'Docker unavailable to this user. Do not change permissions automatically.'
 docker compose version
 docker compose -f compose.yaml config --quiet
 caddy_id=$(docker compose -f compose.yaml ps -q caddy)
 [[ -n "$caddy_id" ]] || fail 'Existing ANUBIS Caddy must be running before this lab procedure.'
+
+printf '\nINFO: ANUBIS runs Node inside Docker; host Node/npm are not required.\n'
+if command -v supabase >/dev/null 2>&1; then
+  printf 'INFO: native Supabase CLI found; verify its version before starting the lab.\n'
+else
+  printf 'INFO: native Supabase CLI not installed yet; install it in step 2, after preflight review.\n'
+fi
 
 printf '\nResources (review available memory/disk before installing):\n'
 free -h
