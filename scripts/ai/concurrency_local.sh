@@ -30,16 +30,30 @@ if ! psql_lab -Atc 'select 1' >/dev/null 2>&1; then
 fi
 rpc_as() {
   local actor="$1" email="$2" sql="$3" output="$4" gate="$5"
-  while [[ ! -e "$gate" ]]; do sleep 0.01; done
-  psql_lab -v actor="$actor" -v email="$email" -Atc "
-    begin;
-    set local statement_timeout = '10s';
-    set local role authenticated;
-    select set_config('request.jwt.claim.sub', :'actor', true);
-    select set_config('request.jwt.claim.role', 'authenticated', true);
-    select set_config('request.jwt.claims', json_build_object('sub', :'actor', 'role', 'authenticated', 'email', :'email')::text, true);
-    $sql;
-    commit;" >"$output" 2>&1
+
+  while [[ ! -e "$gate" ]]; do
+    sleep 0.01
+  done
+
+  psql_lab -v actor="$actor" -v email="$email" -At \
+    >"$output" 2>&1 <<SQL
+begin;
+set local statement_timeout = '10s';
+set local role authenticated;
+select set_config('request.jwt.claim.sub', :'actor', true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+select set_config(
+  'request.jwt.claims',
+  json_build_object(
+    'sub', :'actor',
+    'role', 'authenticated',
+    'email', :'email'
+  )::text,
+  true
+);
+$sql;
+commit;
+SQL
 }
 
 failure_code() {
