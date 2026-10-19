@@ -7,6 +7,18 @@ Entorno: Ubuntu + Docker + ANUBIS + Caddy HTTPS + Supabase LOCAL, https://anubis
 Fuente: confirmacion manual explicita del usuario en el chat. El agente no repitio estas pruebas reales ni inspecciono logs del servidor.
 Estado: las 25 comprobaciones iniciales PASS se conservan abajo. Nuevas confirmaciones y defectos Auth se registran despues; Phase 1 sigue IMPLEMENTED / INTEGRATION BLOCKED. Cloud diferido a preproduccion.
 
+## Estado Auth Y Concurrencia - 2026-10-18
+
+Retest REAL Ubuntu confirmado por el usuario: `AUTH-LOCAL-01 PASS`, `AUTH-LOCAL-02 PASS`, `AUTH-LOCAL-03 PASS`. No se repiten aquí las pruebas Auth.
+
+Concurrencia: `READY FOR RETEST`. No se ejecutó en este entorno porque no existe acceso SSH autorizado al laboratorio y no se deben inventar resultados.
+
+RPCs localizados para la prueba: `accept_invitation(uuid)` más trigger `private.membership_invariants()` para seats; `save_report(uuid,uuid,text,text,text)` para versionado; `finalize_report(uuid,uuid)` más trigger `private.protect_final_report()` para inmutabilidad.
+
+Runner reproducible: `scripts/ai/concurrency_local.sh`. Usa dos procesos `psql` independientes por carrera, fixtures sintéticos, usuarios de prueba existentes (`OWNER_UID`, `ACTOR_A_UID`, `ACTOR_B_UID`) y variables estándar de conexión libpq (`PGSERVICE` o `PGHOST`/`PGPORT`/`PGUSER`/`PGDATABASE`), sin pasar URLs con credenciales como argumentos. No usa `service_role`, no ejecuta `db reset`, no borra volúmenes ni cambia SQL/RLS.
+
+El runner valida: una sola activación entre dos invitaciones con un seat libre; dos versiones únicas, un único draft y payload atómico; una sola finalización y snapshot no vacío/inmutable. Sin mostrar identificadores ni errores crudos, emite estados `PASS`, `FAIL` o `BLOCKED`; la confirmación explícita `ANUBIS_CONCURRENCY_CONFIRM=YES` limita su uso al laboratorio local desechable. La carrera de guardado conserva la semántica actual de un único draft y no pretende demostrar merge de ediciones concurrentes.
+
 | Comprobacion                   | Resultado | Alcance confirmado                                                                                        |
 | ------------------------------ | --------- | --------------------------------------------------------------------------------------------------------- |
 | Ubuntu preflight               | PASS      | Preflight confirmado; el bloqueo anterior por Node queda superado.                                        |
@@ -43,16 +55,16 @@ Esto no demuestra routing correcto ni ausencia de doble MFA, ni toda la matriz d
 
 | Defecto       | Observacion real del usuario                             | Estado de correccion          | Retest Ubuntu/browser |
 | ------------- | -------------------------------------------------------- | ----------------------------- | --------------------- |
-| AUTH-LOCAL-01 | Platform Admin termina en onboarding/Crear organizacion. | IMPLEMENTED / RETEST REQUIRED | PENDIENTE             |
-| AUTH-LOCAL-02 | Ciclo MFA/Entrar repetido antes de acceder.              | IMPLEMENTED / RETEST REQUIRED | PENDIENTE             |
-| AUTH-LOCAL-03 | Recovery llega a Nueva contrasena, pero update falla.    | IMPLEMENTED / RETEST REQUIRED | PENDIENTE             |
+| AUTH-LOCAL-01 | Platform Admin termina en onboarding/Crear organizacion. | IMPLEMENTED / RETEST REQUIRED | PASS manual confirmado |
+| AUTH-LOCAL-02 | Ciclo MFA/Entrar repetido antes de acceder.              | IMPLEMENTED / RETEST REQUIRED | PASS manual confirmado |
+| AUTH-LOCAL-03 | Recovery llega a Nueva contrasena, pero update falla.    | IMPLEMENTED / RETEST REQUIRED | PASS manual confirmado |
 
 Correccion acotada: resolver basado en DB, destino MFA preservado, verificacion nueva de AAL2 y escrituras de cookies estrictas en mutaciones; recovery con contexto firmado ligado a sesion y step-up. Sin SQL/RLS/dominio ni Phase 2.
 La ausencia de destino/verificacion de AAL y de control recovery se comprobo en codigo; no se obtuvo traza remota que demuestre una causa unica de propagacion de cookies ni el codigo exacto del error de Supabase.
 Verificacion del agente en D:\Anubis, 2026-10-17: `npm test -- src/lib/auth/flows.test.ts src/lib/auth/context.test.ts src/lib/auth/validation.test.ts src/lib/supabase/server.test.ts`: PASS, 72 tests / 4 archivos. TypeScript (`npm run typecheck`) y ESLint limitado a los archivos Auth afectados: PASS. Incluye routing, challenge unico/AAL nuevo, denegaciones, contexto recovery firmado/expirado/alterado, callbacks y adaptador de cookies. SDK/DB simulados; no acredita autenticacion real, entrega Set-Cookie del servidor desplegado, invalidacion del password anterior ni aceptacion del nuevo. Sin build, SQL tests, full QA, despliegue ni Phase 2.
 
 Retest pendiente (fixtures): platform admin -> MFA una vez -> /admin; OWNER -> MFA una vez -> dashboard y refresh autorizado; TECHNICIAN -> alcance correcto sin MFA global; recovery desde Mailpit con/sin factor -> update -> login nuevo aceptado y anterior denegado. Probar TOTP incorrecto y enlaces invalidos/vencidos/reusados. Configurar antes la clave privada indicada en [AUTH](AUTH.md).
-Solo tras PASS real de los tres defectos: P1-LOCAL-CONCURRENCY (ultimo seat y versionado/finalizacion simultaneos). No full gate en esta tarea.
+Con los tres defectos Auth en PASS manual, la siguiente validación es `P1-LOCAL-CONCURRENCY` (ultimo seat y versionado/finalizacion simultaneos). No full gate en esta tarea.
 
 ## Limites Y Siguiente Validacion
 
@@ -60,7 +72,7 @@ Solo tras PASS real de los tres defectos: P1-LOCAL-CONCURRENCY (ultimo seat y ve
 - Los accesos por UUID y el aislamiento confirmado no acreditan toda la matriz Data API/RLS ni todas las direcciones/roles/canales posibles.
 - No se infiere concurrencia, replay de migraciones desde cero, reinicio de contenedores, refresh/expiracion de sesion, smoke desktop/mobile ni quality gate local final.
 - Un build y healthy aprobados no equivalen al gate completo. No se declara readiness productiva ni se inicia Phase 2.
-- Tarea actual: P1-LOCAL-AUTH-RETEST, TEST_MODE=manual-targeted. Contrato: [AI_CONTEXT](AI_CONTEXT.md).
+- Tarea actual: P1-LOCAL-CONCURRENCY, TEST_MODE=manual-targeted. Contrato: [AI_CONTEXT](AI_CONTEXT.md).
 
 ## Historial De Preparacion
 
