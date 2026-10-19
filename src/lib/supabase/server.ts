@@ -3,7 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { sessionCookieOptions, supabaseConfig } from "./config";
 
-export async function createServerSupabaseClient() {
+export async function createServerSupabaseClient(writable = false) {
   const config = supabaseConfig();
   if (!config) throw new Error("Supabase is not configured");
   const cookieStore = await cookies();
@@ -19,7 +19,8 @@ export async function createServerSupabaseClient() {
               ...sessionCookieOptions(),
             }),
           );
-        } catch {
+        } catch (error) {
+          if (writable) throw error;
           // Server Components are read-only; proxy persists refreshed cookies.
         }
       },

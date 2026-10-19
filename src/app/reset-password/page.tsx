@@ -1,9 +1,10 @@
 import { Suspense } from "react";
 import { AuthForm } from "@/components/anubis/AuthForm";
 import { requireUser } from "@/lib/auth/context";
+import { requireRecovery } from "@/lib/auth/recovery";
 
 async function Reset() {
-  await requireUser();
+  await requireRecovery(await requireUser());
   return (
     <section className="w-full max-w-md">
       <h1 className="text-2xl font-semibold">Nueva contrasena</h1>

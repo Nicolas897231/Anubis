@@ -10,6 +10,24 @@ async function Message({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
+  if (
+    params.state === "password-updated" ||
+    params.state === "password-updated-sessions"
+  )
+    return (
+      <p role="status" className="mt-4 text-sm">
+        Contrasena actualizada. Inicia sesion con tu nueva contrasena.
+        {params.state === "password-updated-sessions"
+          ? " No se pudo confirmar el cierre de otras sesiones; contacta al administrador."
+          : ""}
+      </p>
+    );
+  if (params.state === "recovery-config")
+    return (
+      <p role="alert" className="mt-4 text-sm text-destructive">
+        La recuperacion no esta configurada. Contacta al administrador.
+      </p>
+    );
   return params.state === "link" ? (
     <p role="alert" className="mt-4 text-sm text-destructive">
       El enlace no es valido o ya vencio. Solicita uno nuevo.

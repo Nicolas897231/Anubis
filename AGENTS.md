@@ -78,3 +78,10 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## Context Efficiency
+
+- `docs/AI_CONTEXT.md` is the only HOT context; `docs/ai-context/` is COLD navigation and domain material, opened only when the HOT contract requires it.
+- Start with `git status --short`, `git diff --stat`, then exact paths. Use `scripts/ai/search_code.py` for scoped searches and `scripts/ai/run_capped.py` for noisy commands; preserve exit codes and never include secrets in logs or output.
+- Keep each execution on one verifiable slice, use `TEST_MODE` from `AI_CONTEXT`, and record the next slice there. Do not create parallel state, handoff, or phase documents.
+- Treat code changes and mocks as unverified until the real environment confirms them; retain `FAIL`/`BLOCKED` evidence until retest.

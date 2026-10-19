@@ -31,14 +31,20 @@ describe("Auth and mutation validation", () => {
   it.each([
     "https://evil.example",
     "//evil.example",
-    "/admin",
+    "javascript:alert(1)",
+    "/\\evil.example",
+    "/%2f%2fevil.example",
+    "/app/dashboard/../admin",
+    "/admin\r\nLocation:evil",
     "/app?next=evil",
     null,
   ])("rejects open redirect %s", (path) =>
     expect(safeNext(path)).toBe("/onboarding"),
   );
-  it("permits only the known recovery destination", () =>
-    expect(safeNext("/reset-password")).toBe("/reset-password"));
+  it.each(["/admin", "/app/dashboard", "/reset-password", "/onboarding"])(
+    "permits approved destination %s",
+    (path) => expect(safeNext(path)).toBe(path),
+  );
   it("checks expiration and active subscription status", () => {
     expect(usableSubscription({ status: "active", valid_until: null })).toBe(
       true,

@@ -33,7 +33,17 @@ export function usableSubscription(
 }
 
 export function safeNext(value: string | null) {
-  return value === "/reset-password" ? value : "/onboarding";
+  // Deliberately narrow: no query, encoding, backslash or arbitrary path.
+  return value &&
+    ["/admin", "/app/dashboard", "/reset-password", "/onboarding"].includes(
+      value,
+    )
+    ? value
+    : "/onboarding";
+}
+
+export function mfaDestination(next: string) {
+  return `/mfa?next=${safeNext(next)}`;
 }
 
 export type FormState = {

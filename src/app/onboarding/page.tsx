@@ -12,13 +12,18 @@ import {
   selectOrganization,
 } from "@/lib/auth/actions";
 import { requireUser } from "@/lib/auth/context";
+import { redirect } from "next/navigation";
+import { resolvePostAuth } from "@/lib/auth/destination";
 
 async function Organizations({
   searchParams,
 }: {
   searchParams: Promise<{ state?: string }>;
 }) {
-  const { supabase, user } = await requireUser();
+  const session = await requireUser();
+  const destination = await resolvePostAuth(session, { chooser: true });
+  if (!destination.path.startsWith("/onboarding")) redirect(destination.path);
+  const { supabase, user } = session;
   const { state } = await searchParams;
   const result = await supabase
     .from("memberships")
@@ -37,6 +42,7 @@ async function Organizations({
     .eq("status", "invited")
     .is("profile_id", null)
     .eq("invited_email", user.email?.toLowerCase() || "")
+    .gt("expires_at", new Date().toISOString())
     .order("created_at")
     .limit(50);
   if (result.error || orgResult.error || invitationResult.error)
@@ -65,7 +71,8 @@ async function Organizations({
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Tu organizacion</h1>
-      {state && (
+      {(state === "unavailable" ||
+        destination.path.includes("unavailable")) && (
         <p role="alert" className="text-sm text-destructive">
           No se pudo habilitar el acceso. Revisa el estado de tu organizacion,
           invitacion o licencias con el administrador.
@@ -108,13 +115,15 @@ async function Organizations({
           <Button type="submit">Aceptar invitacion</Button>
         </form>
       ))}
-      {!memberships.some((membership) => membership.role === "OWNER") && (
-        <ActionForm action={createOrganization} label="Crear organizacion">
-          <FormField id="name" label="Nombre de la organizacion" required>
-            <Input id="name" name="name" required maxLength={120} />
-          </FormField>
-        </ActionForm>
-      )}
+      {destination.path === "/onboarding" &&
+        memberships.length === 0 &&
+        invites.length === 0 && (
+          <ActionForm action={createOrganization} label="Crear organizacion">
+            <FormField id="name" label="Nombre de la organizacion" required>
+              <Input id="name" name="name" required maxLength={120} />
+            </FormField>
+          </ActionForm>
+        )}
       <form action={logout}>
         <Button type="submit" variant="ghost">
           Cerrar sesion

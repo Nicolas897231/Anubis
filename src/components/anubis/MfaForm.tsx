@@ -8,7 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { FormState } from "@/lib/auth/validation";
 
-export function MfaForm({ factorId }: { factorId?: string }) {
+export function MfaForm({
+  factorId,
+  next,
+}: {
+  factorId?: string;
+  next: string;
+}) {
   const [state, action, pending] = useActionState<FormState, FormData>(
     enrollMfa,
     {},
@@ -45,6 +51,7 @@ export function MfaForm({ factorId }: { factorId?: string }) {
       {current && (
         <ActionForm action={verifyMfa} label="Verificar codigo">
           <input type="hidden" name="factorId" value={current} />
+          <input type="hidden" name="next" value={next} />
           <FormField id="code" label="Codigo del autenticador" required>
             <Input
               id="code"

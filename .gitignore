@@ -38,6 +38,8 @@ supabase/.temp/
 supabase/.branches/
 artifacts/
 deploy/local/certs/
+/.codex-output/
+/codex-efficiency-setup/
 
 # vercel
 .vercel

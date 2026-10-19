@@ -8,6 +8,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { appUrl, supabaseConfig } from "@/lib/supabase/config";
 import {
   requiresMfa,
+  mfaDestination,
   roles,
   usableSubscription,
   type TenantRole,
@@ -38,16 +39,40 @@ export async function assertActionOrigin() {
   if (origin !== appUrl()) throw new Error("Invalid request origin");
 }
 
-export const requireUser = cache(async () => {
-  await connection();
-  if (!supabaseConfig()) redirect("/login?state=unconfigured");
-  const supabase = await createServerSupabaseClient();
+export async function readAuthSession(
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
+) {
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user || !data.user.email_confirmed_at) redirect("/login");
   const verified = await supabase.auth.getClaims();
   if (verified.error || verified.data?.claims.sub !== data.user.id)
     redirect("/login");
-  return { supabase, user: data.user, aal: verified.data.claims.aal };
+  return {
+    supabase,
+    user: data.user,
+    aal: verified.data.claims.aal,
+    claims: verified.data.claims,
+  };
+}
+
+/** Confirms both the Auth SDK assurance state and the current JWT claim. */
+export async function readAal2AuthSession(
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
+) {
+  const assurance = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+  if (assurance.error || assurance.data?.currentLevel !== "aal2") {
+    return null;
+  }
+
+  const session = await readAuthSession(supabase);
+  return session.aal === "aal2" ? session : null;
+}
+
+export const requireUser = cache(async () => {
+  await connection();
+  if (!supabaseConfig()) redirect("/login?state=unconfigured");
+  const supabase = await createServerSupabaseClient();
+  return readAuthSession(supabase);
 });
 
 export const requireTenant = cache(async () => {
@@ -63,7 +88,8 @@ export const requireTenant = cache(async () => {
     .maybeSingle();
   if (memberships.error || !memberships.data) redirect("/onboarding");
   const membership = membershipSchema.parse(memberships.data);
-  if (requiresMfa(membership.role) && session.aal !== "aal2") redirect("/mfa");
+  if (requiresMfa(membership.role) && session.aal !== "aal2")
+    redirect(mfaDestination("/app/dashboard"));
   const organizationResult = await session.supabase
     .from("organizations")
     .select("id,name,status")
@@ -98,6 +124,6 @@ export async function requirePlatformAdmin() {
     .eq("profile_id", session.user.id)
     .maybeSingle();
   if (error || !data) redirect("/onboarding");
-  if (session.aal !== "aal2") redirect("/mfa");
+  if (session.aal !== "aal2") redirect(mfaDestination("/admin"));
   return session;
 }
