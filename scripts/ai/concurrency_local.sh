@@ -29,25 +29,31 @@ if ! psql_lab -Atc 'select 1' >/dev/null 2>&1; then
   blocked "database_unavailable"
 fi
 rpc_as() {
-  local actor="$1" email="$2" sql="$3" output="$4" gate="$5"
+  local actor="$1" email="$2" aal="$3" sql="$4" output="$5" gate="$6"
+  case "$aal" in
+    aal1|aal2) ;;
+    *) echo "STATUS=BLOCKED reason=invalid_aal"; return 2 ;;
+  esac
 
   while [[ ! -e "$gate" ]]; do
     sleep 0.01
   done
 
-  psql_lab -v actor="$actor" -v email="$email" -At \
+  psql_lab -v actor="$actor" -v email="$email" -v aal="$aal" -At \
     >"$output" 2>&1 <<SQL
 begin;
 set local statement_timeout = '10s';
 set local role authenticated;
 select set_config('request.jwt.claim.sub', :'actor', true);
 select set_config('request.jwt.claim.role', 'authenticated', true);
+select set_config('request.jwt.claim.aal', :'aal', true);
 select set_config(
   'request.jwt.claims',
   json_build_object(
     'sub', :'actor',
     'role', 'authenticated',
-    'email', :'email'
+    'email', :'email',
+    'aal', :'aal'
   )::text,
   true
 );
@@ -87,8 +93,8 @@ insert into public.memberships(id,organization_id,role,status,invited_email,expi
     (:'invite_b'::uuid,:'org'::uuid,'TECHNICIAN','invited',:'email_b',now()+interval '1 day');
 SQL
 
-rpc_as "$ACTOR_A_UID" "$actor_a_email" "select public.accept_invitation('$seat_invite_a'::uuid)" "$tmpdir/seat-a" "$tmpdir/seats.go" & pid_a=$!
-rpc_as "$ACTOR_B_UID" "$actor_b_email" "select public.accept_invitation('$seat_invite_b'::uuid)" "$tmpdir/seat-b" "$tmpdir/seats.go" & pid_b=$!
+rpc_as "$ACTOR_A_UID" "$actor_a_email" aal1 "select public.accept_invitation('$seat_invite_a'::uuid)" "$tmpdir/seat-a" "$tmpdir/seats.go" & pid_a=$!
+rpc_as "$ACTOR_B_UID" "$actor_b_email" aal1 "select public.accept_invitation('$seat_invite_b'::uuid)" "$tmpdir/seat-b" "$tmpdir/seats.go" & pid_b=$!
 touch "$tmpdir/seats.go"
 set +e
 wait "$pid_a"; rc_a=$?
@@ -120,8 +126,8 @@ insert into public.reports(id,organization_id,service_id,created_by,version,stat
   values (:'report'::uuid,:'org'::uuid,:'service'::uuid,:'membership'::uuid,1,'finalized','seed',now()-interval '1 minute','{"seed":true}'::jsonb);
 SQL
 
-rpc_as "$OWNER_UID" "$owner_email" "select public.save_report('$report_org'::uuid,'$service_id'::uuid,'version-a','findings-a','recommendations-a')" "$tmpdir/version-a" "$tmpdir/version.go" & pid_a=$!
-rpc_as "$OWNER_UID" "$owner_email" "select public.save_report('$report_org'::uuid,'$service_id'::uuid,'version-b','findings-b','recommendations-b')" "$tmpdir/version-b" "$tmpdir/version.go" & pid_b=$!
+rpc_as "$OWNER_UID" "$owner_email" aal2 "select public.save_report('$report_org'::uuid,'$service_id'::uuid,'version-a','findings-a','recommendations-a')" "$tmpdir/version-a" "$tmpdir/version.go" & pid_a=$!
+rpc_as "$OWNER_UID" "$owner_email" aal2 "select public.save_report('$report_org'::uuid,'$service_id'::uuid,'version-b','findings-b','recommendations-b')" "$tmpdir/version-b" "$tmpdir/version.go" & pid_b=$!
 touch "$tmpdir/version.go"
 set +e; wait "$pid_a"; vrc_a=$?; wait "$pid_b"; vrc_b=$?; set -e
 [[ "$vrc_a" -eq 0 && "$vrc_b" -eq 0 ]] || {
@@ -138,8 +144,8 @@ esac
 report_v2="$(psql_lab -Atc "select id from public.reports where service_id='$service_id' and status='draft'")"
 echo "REPORT_VERSION_TEST=PASS versions=2 drafts=1 payload=atomic"
 
-rpc_as "$OWNER_UID" "$owner_email" "select public.finalize_report('$report_org'::uuid,'$report_v2'::uuid)" "$tmpdir/finalize-a" "$tmpdir/finalize.go" & pid_a=$!
-rpc_as "$OWNER_UID" "$owner_email" "select public.finalize_report('$report_org'::uuid,'$report_v2'::uuid)" "$tmpdir/finalize-b" "$tmpdir/finalize.go" & pid_b=$!
+rpc_as "$OWNER_UID" "$owner_email" aal2 "select public.finalize_report('$report_org'::uuid,'$report_v2'::uuid)" "$tmpdir/finalize-a" "$tmpdir/finalize.go" & pid_a=$!
+rpc_as "$OWNER_UID" "$owner_email" aal2 "select public.finalize_report('$report_org'::uuid,'$report_v2'::uuid)" "$tmpdir/finalize-b" "$tmpdir/finalize.go" & pid_b=$!
 touch "$tmpdir/finalize.go"
 set +e; wait "$pid_a"; frc_a=$?; wait "$pid_b"; frc_b=$?; set -e
 final_success=0; [[ "$frc_a" -eq 0 ]] && final_success=$((final_success+1)); [[ "$frc_b" -eq 0 ]] && final_success=$((final_success+1))
