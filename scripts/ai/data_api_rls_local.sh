@@ -9,7 +9,7 @@ command -v curl >/dev/null 2>&1 || blocked "curl_missing"
 for var in SUPABASE_URL SUPABASE_ANON_KEY; do
   [[ -n "${!var:-}" ]] || blocked "missing_${var,,}"
 done
-[[ "$SUPABASE_URL" == https://*.snti.local* ]] || blocked "supabase_url_not_local_lab"
+[[ "$SUPABASE_URL" == "http://127.0.0.1:54321" ]] || blocked "supabase_url_not_loopback"
 command -v jq >/dev/null 2>&1 || blocked "jq_missing"
 
 # Credentials and JWTs never enter stdout; temporary files are private and removed on exit.
@@ -20,6 +20,7 @@ login_response="$tmpdir/login.json"
 email="${ANUBIS_TEST_EMAIL:-}"; password="${ANUBIS_TEST_PASSWORD:-}"
 [[ -n "$email" && -n "$password" ]] || blocked "missing_test_credentials"
 curl -fsS --retry 1 --max-time 20 \
+  --noproxy '*' \
   -H 'Content-Type: application/json' \
   -H "apikey: $SUPABASE_ANON_KEY" \
   -d "$(jq -cn --arg email "$email" --arg password "$password" '{email:$email,password:$password}')" \
@@ -29,11 +30,11 @@ access_token="$(jq -er '.access_token // empty' "$login_response")" || blocked "
 api() {
   local method="$1" path="$2" body="${3:-}" output="$4"
   if [[ -n "$body" ]]; then
-    curl -sS --max-time 20 -o "$output" -w '%{http_code}' -X "$method" \
+    curl -sS --noproxy '*' --max-time 20 -o "$output" -w '%{http_code}' -X "$method" \
       -H "apikey: $SUPABASE_ANON_KEY" -H "Authorization: Bearer $access_token" \
       -H 'Content-Type: application/json' -d "$body" "$SUPABASE_URL$path"
   else
-    curl -sS --max-time 20 -o "$output" -w '%{http_code}' -X "$method" \
+    curl -sS --noproxy '*' --max-time 20 -o "$output" -w '%{http_code}' -X "$method" \
       -H "apikey: $SUPABASE_ANON_KEY" -H "Authorization: Bearer $access_token" \
       "$SUPABASE_URL$path"
   fi
