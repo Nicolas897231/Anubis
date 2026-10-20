@@ -11,13 +11,25 @@ Estado: las 25 comprobaciones iniciales PASS se conservan abajo. Nuevas confirma
 
 Retest REAL Ubuntu confirmado por el usuario: `AUTH-LOCAL-01 PASS`, `AUTH-LOCAL-02 PASS`, `AUTH-LOCAL-03 PASS`. No se repiten aquí las pruebas Auth.
 
-Concurrencia: `READY FOR RETEST`. No se ejecutó en este entorno porque no existe acceso SSH autorizado al laboratorio y no se deben inventar resultados.
+Concurrencia: PASS real Ubuntu confirmado por el usuario; el agente no repitió la ejecución remota.
 
 RPCs localizados para la prueba: `accept_invitation(uuid)` más trigger `private.membership_invariants()` para seats; `save_report(uuid,uuid,text,text,text)` para versionado; `finalize_report(uuid,uuid)` más trigger `private.protect_final_report()` para inmutabilidad.
 
 Runner reproducible: `scripts/ai/concurrency_local.sh`. Usa dos procesos `psql` independientes por carrera, fixtures sintéticos, usuarios de prueba existentes (`OWNER_UID`, `ACTOR_A_UID`, `ACTOR_B_UID`) y variables estándar de conexión libpq (`PGSERVICE` o `PGHOST`/`PGPORT`/`PGUSER`/`PGDATABASE`), sin pasar URLs con credenciales como argumentos. No usa `service_role`, no ejecuta `db reset`, no borra volúmenes ni cambia SQL/RLS.
 
-El runner valida: una sola activación entre dos invitaciones con un seat libre; dos versiones únicas, un único draft y payload atómico; una sola finalización y snapshot no vacío/inmutable. Sin mostrar identificadores ni errores crudos, emite estados `PASS`, `FAIL` o `BLOCKED`; la confirmación explícita `ANUBIS_CONCURRENCY_CONFIRM=YES` limita su uso al laboratorio local desechable. La carrera de guardado conserva la semántica actual de un único draft y no pretende demostrar merge de ediciones concurrentes.
+Resultado real confirmado por el usuario: `SEATS_TEST=PASS success=1 active=2`; `REPORT_VERSION_TEST=PASS versions=2 drafts=1 payload=atomic`; `REPORT_FINALIZE_TEST=PASS success=1 immutable=true`; `DATABASE_INVARIANTS=PASS`; `STATUS=PASS`, exit 0. El alcance es concurrencia SQL con claims simulados y no valida por completo PostgREST/JWT, cookies, gateway ni navegador. El runner conserva la semántica actual de un único draft y no pretende demostrar merge de ediciones concurrentes.
+
+La siguiente rama `feat/p1-role-flows` valida ADMIN y SUPERVISOR con pruebas positivas/negativas, tenant scope y restricciones de asignación. No se repite concurrencia ni se modifica Auth, SQL/RLS, Docker, Caddy o Guardian.
+
+## P1-LOCAL-DATA-API-RLS - Preparacion
+
+Estado: `READY FOR RETEST`; no se ejecutan pruebas reales en esta tarea.
+
+Matriz obligatoria con JWT reales obtenidos por autenticación legítima de cuentas ficticias: anónimo; autenticado sin organización; OWNER; ADMIN; SUPERVISOR restringido a sus servicios/asignaciones; TECHNICIAN restringido a servicios asignados; usuario suspendido; membresía revocada; organización con entitlement vencido; acceso cruzado Tenant A/B; Platform Admin sin lectura ni mutación operativa de tenants.
+
+Cada identidad debe probar lecturas y RPC permitidos, lecturas cruzadas, mutaciones permitidas y mutaciones rechazadas. No usar claims simulados, `service_role`, SQL directo como identidad de prueba ni imprimir JWT, refresh token, contraseñas, cookies, claves, emails o respuestas sensibles. Usar solo fixtures nuevos y registrar `PASS`, `FAIL` o `BLOCKED` con motivos sanitizados.
+
+Runner preparado: `scripts/ai/data_api_rls_local.sh`. Realiza únicamente login legítimo y smoke read-only con JWT real; requiere `ANUBIS_DATA_API_CONFIRM=YES`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, credenciales de una cuenta ficticia y UUIDs de fixtures. La matriz completa requiere ampliar sus variables por identidad antes de ejecutar el gate.
 
 | Comprobacion                   | Resultado | Alcance confirmado                                                                                        |
 | ------------------------------ | --------- | --------------------------------------------------------------------------------------------------------- |
@@ -70,9 +82,9 @@ Con los tres defectos Auth en PASS manual, la siguiente validación es `P1-LOCAL
 
 - No se infiere PASS de la matriz completa ADMIN/SUPERVISOR/TECHNICIAN, aislamiento del operador S&N, membresias/roles/seats completos, MFA sin bucles ni recovery. Los casos concretos adicionales se limitan a lo confirmado arriba.
 - Los accesos por UUID y el aislamiento confirmado no acreditan toda la matriz Data API/RLS ni todas las direcciones/roles/canales posibles.
-- No se infiere concurrencia, replay de migraciones desde cero, reinicio de contenedores, refresh/expiracion de sesion, smoke desktop/mobile ni quality gate local final.
+- La concurrencia PASS confirmada se limita al runner SQL con claims simulados; no acredita PostgREST/JWT completo, replay de migraciones desde cero, reinicio de contenedores, refresh/expiracion de sesion, smoke desktop/mobile ni quality gate local final.
 - Un build y healthy aprobados no equivalen al gate completo. No se declara readiness productiva ni se inicia Phase 2.
-- Tarea actual: P1-LOCAL-CONCURRENCY, TEST_MODE=manual-targeted. Contrato: [AI_CONTEXT](AI_CONTEXT.md).
+- Tarea actual: P1-LOCAL-DATA-API-RLS, rama `feat/p1-role-flows`, TEST_MODE=manual-targeted. Contrato: [AI_CONTEXT](AI_CONTEXT.md).
 
 ## Historial De Preparacion
 

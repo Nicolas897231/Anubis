@@ -85,6 +85,64 @@ test("Migration replay, tenant isolation and authorization", async (t) => {
       "Servicio Demo B",
       "support",
     ]);
+    const ownerMembershipA = (
+      await db.query(
+        "select id from public.memberships where organization_id=$1 and role='OWNER'",
+        [orgA],
+      )
+    ).rows[0].id;
+    await t.test(
+      "admin can operate in-tenant data but cannot cross tenant boundaries",
+      async () => {
+        await call(
+          "adminA",
+          "save_client",
+          [orgA, "Cliente Admin A", null, null, null, null, clientA],
+          "aal2",
+        );
+        await call("adminA", "archive_client", [orgA, clientA, true], "aal2");
+        await call("adminA", "archive_client", [orgA, clientA, false], "aal2");
+        await assert.rejects(
+          call("adminA", "create_service", [orgA, clientB, "Cross tenant", "support"], "aal2"),
+          /Client unavailable|Not authorized/,
+        );
+      },
+    );
+    await t.test(
+      "supervisor operates only assigned technicians and own tenant",
+      async () => {
+        const supervisorService = await call(
+          "supervisorA",
+          "create_service",
+          [orgA, clientA, "Servicio Supervisor A", "support"],
+          "aal1",
+        );
+        await assert.rejects(
+          call(
+            "supervisorA",
+            "assign_service",
+            [orgA, supervisorService, ownerMembershipA],
+            "aal1",
+          ),
+          /Technician unavailable/,
+        );
+        await call(
+          "supervisorA",
+          "assign_service",
+          [orgA, supervisorService, memberships.techA],
+          "aal1",
+        );
+        await assert.rejects(
+          call(
+            "supervisorA",
+            "create_service",
+            [orgB, clientB, "Cross tenant", "support"],
+            "aal1",
+          ),
+          /Client unavailable|Not authorized/,
+        );
+      },
+    );
     await call("ownerA", "assign_service", [orgA, serviceA, memberships.techA]);
     await call("ownerB", "assign_service", [orgB, serviceB, memberships.techB]);
     await t.test(
