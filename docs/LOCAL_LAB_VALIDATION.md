@@ -19,17 +19,31 @@ Runner reproducible: `scripts/ai/concurrency_local.sh`. Usa dos procesos `psql` 
 
 Resultado real confirmado por el usuario: `SEATS_TEST=PASS success=1 active=2`; `REPORT_VERSION_TEST=PASS versions=2 drafts=1 payload=atomic`; `REPORT_FINALIZE_TEST=PASS success=1 immutable=true`; `DATABASE_INVARIANTS=PASS`; `STATUS=PASS`, exit 0. El alcance es concurrencia SQL con claims simulados y no valida por completo PostgREST/JWT, cookies, gateway ni navegador. El runner conserva la semántica actual de un único draft y no pretende demostrar merge de ediciones concurrentes.
 
-La siguiente rama `feat/p1-role-flows` valida ADMIN y SUPERVISOR con pruebas positivas/negativas, tenant scope y restricciones de asignación. No se repite concurrencia ni se modifica Auth, SQL/RLS, Docker, Caddy o Guardian.
+Los cuatro casos manuales ADMIN/SUPERVISOR ya están confirmados PASS y los casos focalizados están cubiertos en `tests/database.mjs`. No se repite concurrencia ni se modifica Auth, SQL/RLS, Docker, Caddy o Guardian.
 
 ## P1-LOCAL-DATA-API-RLS - Preparacion
 
-Estado: `READY FOR RETEST`; no se ejecutan pruebas reales en esta tarea.
+Estado: `P1-DATA-API-SMOKE-01 PASS`; siguiente matriz `READY FOR RETEST`. No se ejecutan pruebas reales en esta tarea.
+
+Evidencia real Ubuntu: `authenticated_org_read PASS`; `foreign_org_query_completed PASS`; `foreign_org_hidden` verificado; `RUNNER_EXIT_CODE=0`. El smoke usó JWT legítimo y solo lectura; no prueba todavía toda la matriz Data API/RLS ni PostgREST/JWT en todos los roles.
 
 Matriz obligatoria con JWT reales obtenidos por autenticación legítima de cuentas ficticias: anónimo; autenticado sin organización; OWNER; ADMIN; SUPERVISOR restringido a sus servicios/asignaciones; TECHNICIAN restringido a servicios asignados; usuario suspendido; membresía revocada; organización con entitlement vencido; acceso cruzado Tenant A/B; Platform Admin sin lectura ni mutación operativa de tenants.
 
 Cada identidad debe probar lecturas y RPC permitidos, lecturas cruzadas, mutaciones permitidas y mutaciones rechazadas. No usar claims simulados, `service_role`, SQL directo como identidad de prueba ni imprimir JWT, refresh token, contraseñas, cookies, claves, emails o respuestas sensibles. Usar solo fixtures nuevos y registrar `PASS`, `FAIL` o `BLOCKED` con motivos sanitizados.
 
-Runner preparado: `scripts/ai/data_api_rls_local.sh`. Realiza únicamente login legítimo y smoke read-only con JWT real; requiere `ANUBIS_DATA_API_CONFIRM=YES`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, credenciales de una cuenta ficticia y UUIDs de fixtures. La matriz completa requiere ampliar sus variables por identidad antes de ejecutar el gate.
+Runner preparado: `scripts/ai/data_api_rls_local.sh`. Realiza únicamente login legítimo y smoke read-only con JWT real; requiere `ANUBIS_DATA_API_CONFIRM=YES`, URL loopback exacta, `SUPABASE_ANON_KEY`, credenciales ficticias separadas `ANUBIS_NO_ORG_*` y `ANUBIS_TECHNICIAN_*`, más UUIDs aislados de organizaciones, clientes y servicios. La revocación queda fuera y la ejecución real requiere confirmación explícita en Ubuntu.
+
+## P1-DATA-API-RLS-02 - Preparación
+
+Estado: `READY FOR RETEST`; no ejecutado.
+
+Fixtures obligatorios, todos sintéticos y separados: `ORG_A`, `ORG_B`, cliente/servicio asignado a `TECHNICIAN_A`, servicio no asignado y usuario `NO_ORG` sin membresías. Cada cuenta se autentica legítimamente contra `http://127.0.0.1:54321`; no se aceptan claims fabricados ni `service_role`. La revocación queda para SMOKE-03.
+
+Matriz read-only: anónimo debe recibir rechazo o cero filas; `NO_ORG` no debe leer organizaciones ni datos de tenants; `TECHNICIAN_A` debe obtener el UUID esperado de su servicio asignado y cero filas/rechazo para el no asignado; A/B debe ocultar clientes y servicios ajenos. Un HTTP 200 con array vacío solo es PASS para una lectura negativa, nunca para la lectura positiva esperada.
+
+Revocación separada: autenticar `REVOKE_CASE`, verificar acceso permitido con su JWT real, revocar únicamente la membresía ficticia mediante el flujo autorizado, repetir la lectura con el JWT anterior y exigir rechazo/cero filas según contrato. No reutilizar fixtures ni usuarios de otros casos. Registrar solo `PASS`, `FAIL` o `BLOCKED`, sin tokens, contraseñas, cookies, claves, emails ni respuestas completas.
+
+Preflight común: `ANUBIS_DATA_API_CONFIRM=YES`, URL exacta loopback, `--noproxy '*'`, UUIDs válidos y temporales privados `600`; ejecutar primero todos los casos read-only y detenerse ante cualquier fuga o fixture no aislado. El preparador reproducible es `scripts/ai/data_api_smoke02_fixtures.sh`: crea cuentas mediante Auth Admin, datos mediante conexión PostgreSQL administrativa separada, verifica invariantes y deja un env privado para el runner; no inserta directamente en `auth.users` ni ejecuta el smoke. `scripts/ai/data_api_smoke02_run.sh` carga ese env sin `source`, exige confirmación separada y ejecuta solo el runner RLS.
 
 | Comprobacion                   | Resultado | Alcance confirmado                                                                                        |
 | ------------------------------ | --------- | --------------------------------------------------------------------------------------------------------- |
@@ -75,12 +89,12 @@ Correccion acotada: resolver basado en DB, destino MFA preservado, verificacion 
 La ausencia de destino/verificacion de AAL y de control recovery se comprobo en codigo; no se obtuvo traza remota que demuestre una causa unica de propagacion de cookies ni el codigo exacto del error de Supabase.
 Verificacion del agente en D:\Anubis, 2026-10-17: `npm test -- src/lib/auth/flows.test.ts src/lib/auth/context.test.ts src/lib/auth/validation.test.ts src/lib/supabase/server.test.ts`: PASS, 72 tests / 4 archivos. TypeScript (`npm run typecheck`) y ESLint limitado a los archivos Auth afectados: PASS. Incluye routing, challenge unico/AAL nuevo, denegaciones, contexto recovery firmado/expirado/alterado, callbacks y adaptador de cookies. SDK/DB simulados; no acredita autenticacion real, entrega Set-Cookie del servidor desplegado, invalidacion del password anterior ni aceptacion del nuevo. Sin build, SQL tests, full QA, despliegue ni Phase 2.
 
-Retest pendiente (fixtures): platform admin -> MFA una vez -> /admin; OWNER -> MFA una vez -> dashboard y refresh autorizado; TECHNICIAN -> alcance correcto sin MFA global; recovery desde Mailpit con/sin factor -> update -> login nuevo aceptado y anterior denegado. Probar TOTP incorrecto y enlaces invalidos/vencidos/reusados. Configurar antes la clave privada indicada en [AUTH](AUTH.md).
+Retest pendiente (siguiente matriz Data API/RLS): anónimo; autenticado sin organización; TECHNICIAN solo en sus servicios; membresía revocada; acceso cruzado a clientes/servicios; además de suspendido, entitlement vencido y Platform Admin sin datos operativos. Auth/MFA/Recovery, concurrencia y roles manuales anteriores no se repiten.
 Con los tres defectos Auth en PASS manual, la siguiente validación es `P1-LOCAL-CONCURRENCY` (ultimo seat y versionado/finalizacion simultaneos). No full gate en esta tarea.
 
 ## Limites Y Siguiente Validacion
 
-- No se infiere PASS de la matriz completa ADMIN/SUPERVISOR/TECHNICIAN, aislamiento del operador S&N, membresias/roles/seats completos, MFA sin bucles ni recovery. Los casos concretos adicionales se limitan a lo confirmado arriba.
+- No se infiere PASS de la matriz completa Data API/RLS, aislamiento del operador S&N, membresias/roles/seats completos, MFA sin bucles ni recovery. Los casos concretos adicionales se limitan a lo confirmado arriba.
 - Los accesos por UUID y el aislamiento confirmado no acreditan toda la matriz Data API/RLS ni todas las direcciones/roles/canales posibles.
 - La concurrencia PASS confirmada se limita al runner SQL con claims simulados; no acredita PostgREST/JWT completo, replay de migraciones desde cero, reinicio de contenedores, refresh/expiracion de sesion, smoke desktop/mobile ni quality gate local final.
 - Un build y healthy aprobados no equivalen al gate completo. No se declara readiness productiva ni se inicia Phase 2.

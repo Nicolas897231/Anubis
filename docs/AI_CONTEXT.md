@@ -19,11 +19,13 @@ Registro, confirmacion por correo local, login/logout, persistencia tras relogin
 Aislamiento Tenant A/B y acceso directo a UUID ajenos de cliente (404), servicio y reporte denegados: PASS confirmado. Detalle y limites en LOCAL_LAB_VALIDATION.
 Confirmados tambien: organizaciones, bootstrap platform admin, platform MFA, cambio entitlement/licencia, invitacion/activacion TECHNICIAN y sus servicios acotados.
 Retest REAL Ubuntu informado por el usuario: AUTH-LOCAL-01 PASS, AUTH-LOCAL-02 PASS, AUTH-LOCAL-03 PASS. Concurrencia local confirmada PASS: seats success=1 active=2; reports versions=2 drafts=1 payload=atomic; finalize success=1 immutable=true; invariants PASS; exit 0. La prueba usa SQL con claims simulados y no sustituye validación completa de PostgREST/JWT.
+P1-DATA-API-SMOKE-01 confirmado PASS en Ubuntu: authenticated_org_read, foreign_org_query_completed y foreign_org_hidden; runner exit 0. Usa JWT legítimo, fixtures ficticios y Data API read-only; no cierra la matriz completa de roles/RLS.
+P1-DATA-API-RLS-02 preparado, no ejecutado: fixtures sintéticos reproducibles y smoke read-only para anon, usuario sin organización, TECHNICIAN asignado/no asignado y cruces Tenant A/B. Wrapper seguro con confirmación separada; revocación queda para SMOKE-03.
 Verificacion de codigo: 73 tests Auth dirigidos, TypeScript y ESLint acotado PASS (SDK/DB simulados); no se ejecuto build ni full gate. Evidencia en LOCAL_LAB_VALIDATION.
 
 ## CURRENT_BLOCKER
 
-AUTH-LOCAL-01/02/03 y P1-LOCAL-CONCURRENCY: PASS manual confirmado por el usuario. Sigue pendiente la matriz focalizada de ADMIN/SUPERVISOR y los gates no listados abajo.
+AUTH-LOCAL-01/02/03, P1-LOCAL-CONCURRENCY y los cuatro casos manuales ADMIN/SUPERVISOR: PASS confirmado. Sigue pendiente la matriz Data API/RLS completa y los gates no listados abajo.
 No inferir PASS de toda la matriz de roles, recovery, MFA sin bucles, Data API/RLS completa, aislamiento operador S&N, concurrencia, replay desde cero, smoke desktop/mobile o quality gate final.
 Persistencia tras relogin no prueba reinicio de contenedores ni refresh/expiracion; seis migraciones aplicadas no acredita replay desde cero.
 
@@ -33,14 +35,14 @@ P1-LOCAL-DATA-API-RLS.
 
 ## GOAL
 
-Preparar y ejecutar después la matriz real de Data API/RLS en Supabase LOCAL con JWT legítimos de cuentas ficticias; no modificar Auth/MFA/Recovery ni iniciar Phase 2.
+Continuar la matriz real de Data API/RLS en Supabase LOCAL con JWT legítimos de cuentas ficticias: anon, sin organización, TECHNICIAN, revocado y cruces de clientes/servicios; separar read-only de la mutación controlada de revocación.
 URL canonica: https://anubis.snti.local. Guardian conserva :80; ANUBIS conserva Caddy :443 y backend aislado.
 Si no hay acceso autorizado, guiar las pruebas manuales y registrar solo resultados confirmados; nunca pedir secretos.
 
 ## ALLOWED_SCOPE
 
 - Registrar la evidencia real de concurrencia confirmada por el usuario, conservando sus límites.
-- Validar Data API/RLS para anon, sin organización, OWNER, ADMIN, SUPERVISOR, TECHNICIAN, suspendido, revocado, entitlement vencido, Tenant A/B y Platform Admin.
+- Validar Data API/RLS para anon, sin organización, OWNER, ADMIN, SUPERVISOR, TECHNICIAN, suspendido, revocado, entitlement vencido, Tenant A/B y Platform Admin; smoke-01 ya cubrió lectura autenticada permitida y aislamiento de organización.
 - Usar operaciones permitidas y rechazadas sobre Data API y RPC sin imprimir tokens ni datos sensibles.
 
 ## FORBIDDEN_SCOPE
@@ -77,7 +79,7 @@ No cerrar Phase 1 ni inferir otros gates. Las confirmaciones anteriores son evid
 
 ## NEXT_IF_SUCCESS
 
-Tras ADMIN/SUPERVISOR: retest real focalizado en Ubuntu y decisión del siguiente gate de Phase 1. No ejecutar full gate ni Phase 2 aqui.
+Tras la matriz Data API/RLS: decidir el siguiente gate de Phase 1. No ejecutar full gate ni Phase 2 aqui.
 
 ## NEXT_IF_BLOCKED
 
