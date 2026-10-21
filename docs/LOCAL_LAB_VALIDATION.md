@@ -23,7 +23,7 @@ Los cuatro casos manuales ADMIN/SUPERVISOR ya están confirmados PASS y los caso
 
 ## P1-LOCAL-DATA-API-RLS - Preparacion
 
-Estado: `P1-DATA-API-SMOKE-01 PASS`; siguiente matriz `READY FOR RETEST`. No se ejecutan pruebas reales en esta tarea.
+Estado: `P1-DATA-API-SMOKE-01 PASS`; SMOKE-02 `PASS` real Ubuntu; siguiente `P1-DATA-API-RLS-03 READY FOR RETEST`.
 
 Evidencia real Ubuntu: `authenticated_org_read PASS`; `foreign_org_query_completed PASS`; `foreign_org_hidden` verificado; `RUNNER_EXIT_CODE=0`. El smoke usó JWT legítimo y solo lectura; no prueba todavía toda la matriz Data API/RLS ni PostgREST/JWT en todos los roles.
 
@@ -44,6 +44,16 @@ Matriz read-only: anónimo debe recibir rechazo o cero filas; `NO_ORG` no debe l
 Revocación separada: autenticar `REVOKE_CASE`, verificar acceso permitido con su JWT real, revocar únicamente la membresía ficticia mediante el flujo autorizado, repetir la lectura con el JWT anterior y exigir rechazo/cero filas según contrato. No reutilizar fixtures ni usuarios de otros casos. Registrar solo `PASS`, `FAIL` o `BLOCKED`, sin tokens, contraseñas, cookies, claves, emails ni respuestas completas.
 
 Preflight común: `ANUBIS_DATA_API_CONFIRM=YES`, URL exacta loopback, `--noproxy '*'`, UUIDs válidos y temporales privados `600`; ejecutar primero todos los casos read-only y detenerse ante cualquier fuga o fixture no aislado. El preparador reproducible es `scripts/ai/data_api_smoke02_fixtures.sh`: crea cuentas mediante Auth Admin, datos mediante conexión PostgreSQL administrativa separada, verifica invariantes y deja un env privado para el runner; no inserta directamente en `auth.users` ni ejecuta el smoke. `scripts/ai/data_api_smoke02_run.sh` carga ese env sin `source`, exige confirmación separada y ejecuta solo el runner RLS.
+
+Resultado real SMOKE-02 Ubuntu: `FIXTURES=PASS`, 10/10 casos PASS, `RUNNER_EXIT_CODE=0`. Alcance: ANON, NO_ORG, TECHNICIAN asignado/no asignado y clientes/servicios Tenant A/B. Las lecturas positivas exigieron UUID presente; las negativas aceptaron rechazo o array vacío. No prueba revocación, expiración de JWT, refresh ni todos los roles/RPC.
+
+## P1-DATA-API-RLS-03 - Preparación
+
+Estado: `READY FOR RETEST`; no ejecutado desde Codex.
+
+Runner: `scripts/ai/data_api_smoke03_fixtures.sh` crea un lote nuevo mediante Auth Admin y PostgreSQL administrativo; `scripts/ai/data_api_smoke03_local.sh` separa `precheck`, `revoke` y `postcheck`. El precheck autentica TECHNICIAN y conserva su JWT en archivo `600`; la revocación usa únicamente `change_membership` con OWNER/ADMIN AAL2 legítimo; el postcheck reutiliza el mismo JWT sin refresh ni nuevo login.
+
+Un `401/403`, error de red, fallo de autenticación, JWT cambiado o falta de AAL2 produce `BLOCKED`, nunca PASS. PASS posterior exige HTTP 200 con array vacío para organización y servicio y verificación de membresía revocada por el RPC. No usa `service_role` como identidad RLS, SQL directo para autorizar ni fixtures SMOKE-01/02.
 
 | Comprobacion                   | Resultado | Alcance confirmado                                                                                        |
 | ------------------------------ | --------- | --------------------------------------------------------------------------------------------------------- |

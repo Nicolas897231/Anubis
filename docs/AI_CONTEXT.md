@@ -20,7 +20,8 @@ Aislamiento Tenant A/B y acceso directo a UUID ajenos de cliente (404), servicio
 Confirmados tambien: organizaciones, bootstrap platform admin, platform MFA, cambio entitlement/licencia, invitacion/activacion TECHNICIAN y sus servicios acotados.
 Retest REAL Ubuntu informado por el usuario: AUTH-LOCAL-01 PASS, AUTH-LOCAL-02 PASS, AUTH-LOCAL-03 PASS. Concurrencia local confirmada PASS: seats success=1 active=2; reports versions=2 drafts=1 payload=atomic; finalize success=1 immutable=true; invariants PASS; exit 0. La prueba usa SQL con claims simulados y no sustituye validación completa de PostgREST/JWT.
 P1-DATA-API-SMOKE-01 confirmado PASS en Ubuntu: authenticated_org_read, foreign_org_query_completed y foreign_org_hidden; runner exit 0. Usa JWT legítimo, fixtures ficticios y Data API read-only; no cierra la matriz completa de roles/RLS.
-P1-DATA-API-RLS-02 preparado, no ejecutado: fixtures sintéticos reproducibles y smoke read-only para anon, usuario sin organización, TECHNICIAN asignado/no asignado y cruces Tenant A/B. Wrapper seguro con confirmación separada; revocación queda para SMOKE-03.
+P1-DATA-API-RLS-02 PASS real Ubuntu: 10/10 casos, fixtures PASS, exit 0; cubre anon, NO_ORG, TECHNICIAN asignado/no asignado y cruces Tenant A/B. JWT legítimos, Data API read-only y límites documentados; no acredita revocación.
+P1-DATA-API-RLS-03 preparado, no ejecutado: fixtures nuevos, precheck positivo, revocación por RPC con OWNER AAL2 y postcheck con el mismo JWT TECHNICIAN sin refresh.
 Verificacion de codigo: 73 tests Auth dirigidos, TypeScript y ESLint acotado PASS (SDK/DB simulados); no se ejecuto build ni full gate. Evidencia en LOCAL_LAB_VALIDATION.
 
 ## CURRENT_BLOCKER
