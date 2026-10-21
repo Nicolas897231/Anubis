@@ -53,6 +53,8 @@ Estado: `READY FOR RETEST`; no ejecutado desde Codex.
 
 Runner: `scripts/ai/data_api_smoke03_fixtures.sh` crea un lote nuevo mediante Auth Admin y PostgreSQL administrativo; `scripts/ai/data_api_smoke03_local.sh` separa `precheck`, `revoke` y `postcheck`. El precheck autentica TECHNICIAN y conserva su JWT en archivo `600`; la revocación usa únicamente `change_membership` con OWNER/ADMIN AAL2 legítimo; el postcheck reutiliza el mismo JWT sin refresh ni nuevo login.
 
+Helper OWNER: `scripts/ai/smoke03_owner_aal2.sh` autentica exclusivamente el OWNER del fixture, inscribe TOTP mediante Auth LOCAL, solicita el código interactivamente y guarda el JWT AAL2 en archivo `600`. Verifica `aal2`, expiración, rol autenticado, membresía OWNER y organización del fixture; además comprueba que el JWT TECHNICIAN original siga autorizado antes de revocar. No inicia `revoke` ni `postcheck`.
+
 Un `401/403`, error de red, fallo de autenticación, JWT cambiado o falta de AAL2 produce `BLOCKED`, nunca PASS. PASS posterior exige HTTP 200 con array vacío para organización y servicio y verificación de membresía revocada por el RPC. No usa `service_role` como identidad RLS, SQL directo para autorizar ni fixtures SMOKE-01/02.
 
 | Comprobacion                   | Resultado | Alcance confirmado                                                                                        |
