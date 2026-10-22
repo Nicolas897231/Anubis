@@ -74,6 +74,10 @@ export const reportInput = z.object({
   findings: z.string().max(10000),
   recommendations: z.string().max(10000),
 });
+export const evidenceInput = z.object({
+  report_id: z.uuid(),
+  caption: z.string().trim().max(500),
+});
 export const clientRow = z.object({
   id: z.uuid(),
   name: z.string(),

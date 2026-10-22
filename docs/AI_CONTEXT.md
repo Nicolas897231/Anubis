@@ -21,8 +21,9 @@ Confirmados tambien: organizaciones, bootstrap platform admin, platform MFA, cam
 Retest REAL Ubuntu informado por el usuario: AUTH-LOCAL-01 PASS, AUTH-LOCAL-02 PASS, AUTH-LOCAL-03 PASS. Concurrencia local confirmada PASS: seats success=1 active=2; reports versions=2 drafts=1 payload=atomic; finalize success=1 immutable=true; invariants PASS; exit 0. La prueba usa SQL con claims simulados y no sustituye validación completa de PostgREST/JWT.
 P1-DATA-API-SMOKE-01 confirmado PASS en Ubuntu: authenticated_org_read, foreign_org_query_completed y foreign_org_hidden; runner exit 0. Usa JWT legítimo, fixtures ficticios y Data API read-only; no cierra la matriz completa de roles/RLS.
 P1-DATA-API-RLS-02 PASS real Ubuntu: 10/10 casos, fixtures PASS, exit 0; cubre anon, NO_ORG, TECHNICIAN asignado/no asignado y cruces Tenant A/B. JWT legítimos, Data API read-only y límites documentados; no acredita revocación.
-P1-DATA-API-RLS-03 preparado, no ejecutado: fixtures nuevos, precheck positivo, helper TOTP OWNER AAL2 y revocación por RPC con postcheck usando el mismo JWT TECHNICIAN sin refresh.
-Verificacion de codigo: 73 tests Auth dirigidos, TypeScript y ESLint acotado PASS (SDK/DB simulados); no se ejecuto build ni full gate. Evidencia en LOCAL_LAB_VALIDATION.
+P1-DATA-API-RLS-03 BLOCKED real: fixtures y precheck PASS; OWNER TOTP falló HTTP 422; revoke/postcheck no ejecutados. No se declara PASS.
+P1-DATA-API-RLS-04 preparado, no ejecutado: fixtures nuevos para membresía suspendida y entitlement vencido, con JWT reales, fases separadas y PLATFORM ADMIN AAL2 pendiente si no existe token legítimo.
+Wave 02 implementa Storage privado de evidencia, firma PNG con aceptación/satisfacción y descarga PDF autenticada. TypeScript PASS y DB 35/35 PASS; ESLint focalizado TIMEOUT sin salida; integración real de Storage/PDF aún pendiente. Evidencia en LOCAL_LAB_VALIDATION y V2_TEST_EVIDENCE.
 
 ## CURRENT_BLOCKER
 
@@ -32,11 +33,11 @@ Persistencia tras relogin no prueba reinicio de contenedores ni refresh/expiraci
 
 ## CURRENT_TASK
 
-P1-LOCAL-DATA-API-RLS.
+P1-V1-UBUNTU-RETEST.
 
 ## GOAL
 
-Continuar la matriz real de Data API/RLS en Supabase LOCAL con JWT legítimos de cuentas ficticias: anon, sin organización, TECHNICIAN, revocado y cruces de clientes/servicios; separar read-only de la mutación controlada de revocación.
+Validar en Ubuntu el flujo comercial V1.0: Storage privado, firma y PDF sobre reportes finalizados; no repetir gates PASS ni tocar Guardian.
 URL canonica: https://anubis.snti.local. Guardian conserva :80; ANUBIS conserva Caddy :443 y backend aislado.
 Si no hay acceso autorizado, guiar las pruebas manuales y registrar solo resultados confirmados; nunca pedir secretos.
 
@@ -48,8 +49,9 @@ Si no hay acceso autorizado, guiar las pruebas manuales y registrar solo resulta
 
 ## FORBIDDEN_SCOPE
 
-- Phase 2, nuevas funcionalidades, ERP, UI/branding o refactors ajenos.
-- Cambiar Auth/MFA/Recovery, RPC de licencias/informes, SQL/RLS/migraciones, Docker/Caddy, Guardian o Phase 2.
+- V1.5/V2, IA, offline avanzado, inventario, garantías, integraciones futuras, ERP, UI/branding o refactors ajenos.
+- Cambiar Auth/MFA/Recovery, RPC de licencias/informes, Docker/Caddy, Guardian o Phase 2.
+- Modificar SQL/RLS/migraciones fuera de los slices Storage/firma autorizados en esta Wave.
 - Ejecutar esta tarea durante la integracion del estandar; solo dejarla preparada.
 - Tocar Guardian :80, publicar DB/Studio/correo en LAN, borrar datos/volumenes o desactivar TLS.
 - Recursos cloud, datos de clientes, secretos en chat/Git y full quality gate.
@@ -57,6 +59,8 @@ Si no hay acceso autorizado, guiar las pruebas manuales y registrar solo resulta
 ## REQUIRED_DOCS
 
 - [LOCAL LAB](LOCAL_LAB_VALIDATION.md): evidencia y runner de concurrencia.
+- [REQUIREMENTS MATRIX](V2_REQUIREMENTS_MATRIX.md): matriz V1/V1.5/V2 y faltantes reales.
+- [TEST EVIDENCE](V2_TEST_EVIDENCE.md): estados PASS/FAIL/BLOCKED/NOT RUN.
 
 ## TARGET_FILES_OR_AREAS
 
@@ -75,7 +79,7 @@ manual-targeted
 
 ## DONE_WHEN
 
-La matriz Data API/RLS queda validada en Supabase LOCAL con JWT reales, operaciones positivas/negativas y aislamiento documentado. El runner `scripts/ai/data_api_rls_local.sh` pasa sin imprimir credenciales ni JWT.
+La matriz Data API/RLS queda validada en Supabase LOCAL con JWT reales, operaciones positivas/negativas y aislamiento documentado. El runner `scripts/ai/data_api_rls_local.sh` pasa sin imprimir credenciales ni JWT. V1 solo puede cerrarse tras resolver los P0 y completar sus gates reales.
 No cerrar Phase 1 ni inferir otros gates. Las confirmaciones anteriores son evidencia manual del usuario, no pruebas repetidas por el agente.
 
 ## NEXT_IF_SUCCESS

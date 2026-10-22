@@ -3,7 +3,7 @@
 ## PROJECT
 
 ANUBIS by S&N TI. Servicios tecnicos y evidencia de operacion, no ERP.
-Actualizado: 2026-10-17; Ubuntu local es el entorno completo de desarrollo/integracion. Cambio de estrategia, no cierre de fase.
+Actualizado: 2026-10-20; Ubuntu local es el entorno completo de desarrollo/integracion. MVP V1.0 en cierre de gates, no listo para produccion.
 
 ## CURRENT PHASE
 
@@ -12,7 +12,7 @@ PHASE 1 IMPLEMENTED / INTEGRATION BLOCKED.
 ## PHASE STATUS
 
 Phase 0: COMPLETED; despliegue Ubuntu confirmado por el usuario.
-Phase 1: implementacion local disponible; integracion real pendiente.
+Phase 1: implementacion local disponible; integracion real de Storage/firma/PDF y gates operativos pendientes.
 QA de codigo historico: PASS; integracion Ubuntu/gate local final: pendientes. Evidencia historica: [TEST_REPORT](TEST_REPORT.md).
 Phase 1 puede cerrar con todos los gates locales de [PHASE_1_HANDOFF](PHASE_1_HANDOFF.md) aprobados. Cloud no es requisito; cierre local no significa listo para produccion.
 
@@ -30,15 +30,15 @@ Auth/MFA, Data API/RLS, aislamiento, concurrencia y despliegue Phase 1 deben pro
 - Implementacion local de Auth SSR/TOTP, perfiles y onboarding de organizaciones.
 - Membresias, roles y seats/licencias; OWNER puede ejecutar servicios con un solo seat.
 - Clientes, servicios, asignaciones con historial y transiciones autorizadas.
-- Reportes versionados con finalizacion inmutable; evidencia/firma solo como metadatos.
+- Reportes versionados con finalizacion inmutable; Storage privado, firma y PDF implementados, aun sin retest real Ubuntu.
 - Eventos de auditoria, RLS y autorizacion server-side; panel de plataforma separado.
 
 ## WHAT IS MOCK / NOT VALIDATED
 
 Las rutas /app y /admin no usan mock-data; fixtures anteriores pueden permanecer desconectados.
-SQL validado en PostgreSQL WASM aislado y SDK simulado en tests; aun falta integracion real con Supabase local/Docker.
+SQL validado en PostgreSQL WASM aislado y SDK simulado en tests; Storage aun falta validarlo con Supabase local/Docker.
 Sin Supabase configurado, login deshabilitado y rutas privadas cerradas.
-No hay uploads, captura de firma, PDF, pagos ni offline sync; el manifest PWA no implica offline.
+La carga de evidencia, firma y PDF estan implementados pero no validados en el laboratorio; pagos y offline sync siguen pendientes. El manifest PWA no implica offline.
 Contenido publico/legal de Phase 0 no equivale a politicas finales ni contratacion aprobada.
 
 ## ARCHITECTURE SUMMARY
@@ -62,7 +62,8 @@ Diseno local existente: compose.lab.yaml, Supabase CLI con puertos loopback, TLS
 
 ## CURRENT RISKS
 
-Phase 1: integracion local y concurrencia reales pendientes. Riesgos operativos/sesiones y recuperacion MFA deben quedar explicitos, sin bypass.
+Phase 1: Storage/firma/PDF reales pendientes de retest; SMOKE-03 sigue BLOCKED por OWNER TOTP HTTP 422 y SMOKE-04 esta preparado pero no ejecutado. Riesgos operativos/sesiones y recuperacion MFA deben quedar explicitos, sin bypass.
+Backup/restore y release operations siguen siendo bloqueadores del cierre comercial V1.0.
 Cloud, SMTP externo, backup/restore y controles productivos: [PRE-PRODUCTION / RELEASE GATE](PRODUCTION_READINESS.md), diferido hasta producto funcionalmente completo; no provisionar ahora.
 Retencion/legal, aprobacion humana ERD/permisos y trial SOLO/1 seat/14 dias siguen pendientes.
 Ultimo audit: produccion sin hallazgos; 5 high en dependencias dev. No implica certificacion de seguridad.
@@ -70,7 +71,7 @@ Detalle bajo demanda: [PENDING_DECISIONS](PENDING_DECISIONS.md).
 
 ## NEXT ACTION
 
-Publicar/descargar la correccion si falta y ejecutar el preflight Ubuntu segun [AI_CONTEXT](AI_CONTEXT.md). No instalar/iniciar Supabase ni ejecutar full QA en esta tarea documental.
+Ejecutar el retest focalizado de Storage, firma y PDF en Ubuntu segun [NEXT_TASK](NEXT_TASK.md), sin repetir gates PASS ni ejecutar full QA.
 
 ## DO NOT DO
 

@@ -14,6 +14,7 @@ import {
   clientInput,
   serviceInput,
   reportInput,
+  evidenceInput,
   optionalId,
   entitlementInput,
 } from "./validation";
@@ -25,6 +26,11 @@ const denied = {
     "No se pudo completar la operacion. Revisa permisos, estado y licencias disponibles.",
 };
 const saved = { success: "Cambios guardados." };
+const evidenceTypes = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+} as const;
 function refresh() {
   revalidatePath("/app", "layout");
 }
@@ -165,6 +171,83 @@ export async function finalizeReport(
   if (error) return denied;
   refresh();
   return saved;
+}
+function validImageSignature(type: keyof typeof evidenceTypes, bytes: Uint8Array) {
+  if (type === "image/jpeg") return bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  if (type === "image/png") return [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a].every((value, index) => bytes[index] === value);
+  return String.fromCharCode(...bytes.slice(0, 4)) === "RIFF" && String.fromCharCode(...bytes.slice(8, 12)) === "WEBP";
+}
+export async function uploadEvidence(
+  _state: FormState,
+  form: FormData,
+): Promise<FormState> {
+  await assertActionOrigin();
+  const { supabase, organization } = await requireTenant();
+  const parsed = evidenceInput.safeParse(Object.fromEntries(form));
+  const file = form.get("file");
+  if (!parsed.success || !(file instanceof File) || file.size < 1 || file.size > 10 * 1024 * 1024) return invalid;
+  const mime = file.type as keyof typeof evidenceTypes;
+  if (!(mime in evidenceTypes)) return invalid;
+  const bytes = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+  if (!validImageSignature(mime, bytes)) return invalid;
+  const { data: evidenceId, error: reserveError } = await supabase.rpc("reserve_evidence", {
+    p_org: organization.id,
+    p_report: parsed.data.report_id,
+    p_mime: mime,
+    p_size: file.size,
+    p_caption: parsed.data.caption,
+  });
+  if (reserveError || typeof evidenceId !== "string") return denied;
+  const path = `${organization.id}/reports/${parsed.data.report_id}/evidence/${evidenceId}.${evidenceTypes[mime]}`;
+  const { error: uploadError } = await supabase.storage
+    .from("evidence")
+    .upload(path, file, { contentType: mime, upsert: false });
+  if (uploadError) {
+    await supabase.rpc("discard_evidence", { p_org: organization.id, p_evidence: evidenceId });
+    return denied;
+  }
+  refresh();
+  return { success: "Evidencia cargada." };
+}
+export async function recordSignature(
+  _state: FormState,
+  form: FormData,
+): Promise<FormState> {
+  await assertActionOrigin();
+  const { supabase, organization } = await requireTenant();
+  const parsed = z
+    .object({
+      report_id: z.uuid(),
+      signer_name: z.string().trim().min(1).max(120),
+      attestation: z.string().trim().min(1).max(500),
+      satisfaction: z.enum(["satisfied", "neutral", "dissatisfied"]),
+      consent_version: z.string().trim().min(1).max(50),
+      accepted: z.literal("yes"),
+      signature_data: z.string().regex(/^data:image\/png;base64,[A-Za-z0-9+/=]+$/),
+    })
+    .safeParse(Object.fromEntries(form));
+  if (!parsed.success) return invalid;
+  const bytes = Buffer.from(parsed.data.signature_data.split(",", 2)[1], "base64");
+  if (bytes.length < 70 || bytes.length > 2 * 1024 * 1024 || bytes.subarray(0, 8).toString("hex") !== "89504e470d0a1a0a") return invalid;
+  const { data: signatureId, error: recordError } = await supabase.rpc("record_signature", {
+    p_org: organization.id,
+    p_report: parsed.data.report_id,
+    p_signer: parsed.data.signer_name,
+    p_attestation: parsed.data.attestation,
+    p_satisfaction: parsed.data.satisfaction,
+    p_consent_version: parsed.data.consent_version,
+  });
+  if (recordError || typeof signatureId !== "string") return denied;
+  const path = `${organization.id}/reports/${parsed.data.report_id}/signatures/${signatureId}.png`;
+  const { error: uploadError } = await supabase.storage
+    .from("signatures")
+    .upload(path, bytes, { contentType: "image/png", upsert: false });
+  if (uploadError) {
+    await supabase.rpc("discard_signature", { p_org: organization.id, p_signature: signatureId });
+    return denied;
+  }
+  refresh();
+  return { success: "Firma registrada." };
 }
 export async function inviteMember(
   _state: FormState,

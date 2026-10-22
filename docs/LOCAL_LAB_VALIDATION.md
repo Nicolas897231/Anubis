@@ -55,7 +55,21 @@ Runner: `scripts/ai/data_api_smoke03_fixtures.sh` crea un lote nuevo mediante Au
 
 Helper OWNER: `scripts/ai/smoke03_owner_aal2.sh` autentica exclusivamente el OWNER del fixture, inscribe TOTP mediante Auth LOCAL, solicita el código interactivamente y guarda el JWT AAL2 en archivo `600`. Verifica `aal2`, expiración, rol autenticado, membresía OWNER y organización del fixture; además comprueba que el JWT TECHNICIAN original siga autorizado antes de revocar. No inicia `revoke` ni `postcheck`.
 
+Resultado real SMOKE-03: fixtures y precheck PASS; el enrolamiento/verificación TOTP OWNER respondió HTTP 422. `revoke` y `postcheck` no se ejecutaron. Estado: `BLOCKED`, diferido; no reutilizar sus fixtures ni inferir revocación.
+
+## P1-DATA-API-RLS-04 - Preparación
+
+Estado: `READY FOR RETEST`; no ejecutado desde Codex. `scripts/ai/data_api_smoke04_fixtures.sh` crea dos lotes sintéticos nuevos: membresía suspendible y organización con entitlement vigente. `scripts/ai/data_api_smoke04_local.sh` separa `precheck`, `suspend`, `suspended-check`, `expire` y `expired-check`.
+
+El caso suspendido usa `change_membership` con OWNER AAL2 y el JWT TECHNICIAN anterior; el caso vencido usa `platform_set_entitlement` con PLATFORM ADMIN AAL2 y el JWT TECHNICIAN anterior. Red, JWT inválido, AAL insuficiente o preparación incompleta son `BLOCKED`. Bajo la política actual, una organización con entitlement vencido puede seguir apareciendo en `organizations`, mientras clientes y servicios requieren `member_role` válido y deben quedar ocultos; esta expectativa se valida explícitamente.
+
 Un `401/403`, error de red, fallo de autenticación, JWT cambiado o falta de AAL2 produce `BLOCKED`, nunca PASS. PASS posterior exige HTTP 200 con array vacío para organización y servicio y verificación de membresía revocada por el RPC. No usa `service_role` como identidad RLS, SQL directo para autorizar ni fixtures SMOKE-01/02.
+
+## MVP V1.0 Wave 02 - Storage, firma y PDF
+
+Implementado sin ejecución real desde Windows: `supabase/migrations/202610150007_storage.sql`, `scripts/ai/storage_local_smoke.sh`, firma táctil/escrita privada y ruta autenticada `/app/reports/[id]/pdf`. El runner exige confirmación explícita, `SUPABASE_URL=http://127.0.0.1:54321`, JWT obtenido por login legítimo, archivos temporales privados y no usa `service_role`.
+
+Validación local: `npm run test:db` 35/35 PASS, replay de migraciones PASS, TypeScript PASS, `npm run build` PASS y `git diff --check` PASS. `bash -n` no pudo ejecutarse en Windows porque WSL no tiene distribución instalada. ESLint y Vitest focalizado quedaron TIMEOUT sin salida y fueron detenidos. Storage físico, firma y contenido PDF quedan `NOT RUN` hasta Ubuntu.
 
 | Comprobacion                   | Resultado | Alcance confirmado                                                                                        |
 | ------------------------------ | --------- | --------------------------------------------------------------------------------------------------------- |

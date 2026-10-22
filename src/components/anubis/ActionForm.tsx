@@ -8,15 +8,17 @@ export function ActionForm({
   children,
   label,
   disabled = false,
+  encType,
 }: {
   action: (state: FormState, form: FormData) => Promise<FormState>;
   children: ReactNode;
   label: string;
   disabled?: boolean;
+  encType?: "multipart/form-data";
 }) {
   const [state, formAction, pending] = useActionState(action, {});
   return (
-    <form action={formAction} className="space-y-4">
+    <form action={formAction} encType={encType} className="space-y-4">
       <fieldset disabled={pending || disabled} className="space-y-4">
         {children}
       </fieldset>

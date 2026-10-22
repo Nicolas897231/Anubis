@@ -597,6 +597,27 @@ test("Migration replay, tenant isolation and authorization", async (t) => {
           "Receptor Demo",
           "receipt-v1",
         ]);
+        const signature = await call("techA", "record_signature", [
+          orgA,
+          report,
+          "Receptor Demo",
+          "Confirmo la recepcion del servicio.",
+          "satisfied",
+          "receipt-v1",
+        ]);
+        assert.deepEqual(
+          (
+            await db.query(
+              "select accepted, satisfaction, attestation_text from public.signatures where id=$1",
+              [signature],
+            )
+          ).rows[0],
+          {
+            accepted: true,
+            satisfaction: "satisfied",
+            attestation_text: "Confirmo la recepcion del servicio.",
+          },
+        );
         assert.deepEqual(
           (
             await run("ownerB", () =>

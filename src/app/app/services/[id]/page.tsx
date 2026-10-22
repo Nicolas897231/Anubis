@@ -13,10 +13,13 @@ import {
   transitionService,
   saveReport,
   finalizeReport,
+  uploadEvidence,
+  recordSignature,
 } from "@/lib/data/actions";
 import { PageHeader } from "@/components/anubis/PageHeader";
 import { ServiceStatusBadge } from "@/components/anubis/ServiceStatusBadge";
 import { ActionForm } from "@/components/anubis/ActionForm";
+import { SignaturePad } from "@/components/anubis/SignaturePad";
 import {
   dateLabel,
   SelectField,
@@ -239,8 +242,35 @@ export default async function Page({
               </label>
             </ActionForm>
           )}
+        {draft && canWriteReport && (
+          <div className="max-w-xl border-t border-border pt-5">
+            <h3 className="text-base font-semibold">Evidencia fotografica</h3>
+            <ActionForm action={uploadEvidence} label="Cargar evidencia" encType="multipart/form-data">
+              <input type="hidden" name="report_id" value={draft.id} />
+              <label className="block text-sm font-medium" htmlFor="evidence-file">Fotografia</label>
+              <input id="evidence-file" name="file" type="file" accept="image/jpeg,image/png,image/webp" required />
+              <TextField name="caption" label="Descripcion (opcional)" />
+            </ActionForm>
+          </div>
+        )}
+        {draft && canWriteReport && (
+          <div className="max-w-2xl border-t border-border pt-5">
+            <h3 className="text-base font-semibold">Constancia del cliente</h3>
+            <ActionForm action={recordSignature} label="Guardar firma" encType="multipart/form-data">
+              <input type="hidden" name="report_id" value={draft.id} />
+              <TextField name="signer_name" label="Nombre del firmante" />
+              <TextField name="attestation" label="Texto de constancia" defaultValue="Confirmo que el servicio fue realizado y recibido." maxLength={500} />
+              <SelectField name="satisfaction" label="Satisfaccion del servicio">
+                <option value="satisfied">Satisfecho</option>
+                <option value="neutral">Neutral</option>
+                <option value="dissatisfied">Insatisfecho</option>
+              </SelectField>
+              <SignaturePad />
+            </ActionForm>
+          </div>
+        )}
         <p className="text-sm text-muted-foreground">
-          Carga de archivos, captura de firmas y PDF pendientes de habilitar.
+          El PDF se habilita al finalizar el informe y conserva la evidencia y la constancia registrada.
         </p>
         {reports
           .filter((r) => r.status === "finalized")
@@ -263,6 +293,9 @@ export default async function Page({
                   </div>
                 ))}
               </dl>
+              <Link className="mt-4 inline-block underline" href={`/app/reports/${r.id}/pdf`}>
+                Descargar informe PDF
+              </Link>
             </details>
           ))}
       </section>
