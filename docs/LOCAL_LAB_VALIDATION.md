@@ -79,7 +79,7 @@ Estado real: Storage smoke `NOT RUN`; no se declara PASS desde Windows. Antes de
 
 ## Storage Migration 008 - Estado
 
-Ubuntu confirmó que 007 histórica está aplicada, pero sus DELETE policies solo exigían bucket y `private.can_report`; además `signatures.accepted` quedó `NOT NULL DEFAULT true`. Se creó `supabase/migrations/202610150008_storage_security.sql` para corregirlo sin editar el historial: precondición Storage, buckets privados, revisión de consentimientos históricos, RPC de firma explícita de 7 argumentos, cleanup físico previo y DELETE por actor/rol/membresía activa/tenant/reporte draft. Aplicación 008 y smoke físico: `NOT RUN`.
+Ubuntu confirmó que 007 histórica estaba aplicada, pero sus DELETE policies solo exigían bucket y `private.can_report`; además `signatures.accepted` quedó `NOT NULL DEFAULT true`. 008 fue aplicada y verificada en Ubuntu. El primer preparador falló antes de crear recursos por expansión de `label` bajo `set -u`; el hotfix separa asignaciones locales y añade `.in-progress` persistente: una reejecución bloquea fixtures parciales sin borrar ni duplicar. Mock de marcador parcial e idempotencia: PASS; Storage smoke físico: `NOT RUN`.
 
 | Comprobacion                   | Resultado | Alcance confirmado                                                                                        |
 | ------------------------------ | --------- | --------------------------------------------------------------------------------------------------------- |

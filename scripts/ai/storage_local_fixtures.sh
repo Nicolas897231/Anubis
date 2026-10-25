@@ -9,13 +9,15 @@ for var in SUPABASE_URL SUPABASE_ANON_KEY SUPABASE_SERVICE_ROLE_KEY ANUBIS_STORA
 done
 [[ "$SUPABASE_URL" == "http://127.0.0.1:54321" ]] || blocked "supabase_url_not_loopback"
 
-state="$ANUBIS_STORAGE_FIXTURE_FILE"; state_dir="$(dirname -- "$state")"
+state="$ANUBIS_STORAGE_FIXTURE_FILE"; state_dir="$(dirname -- "$state")"; partial_marker="$state.in-progress"
 mkdir -p "$state_dir"; chmod 700 "$state_dir"
+[[ ! -e "$partial_marker" ]] || blocked "partial_fixture_state_detected"
 if [[ -f "$state" ]]; then
   chmod 600 "$state"
   jq -e '(.schema == 2 and .organization_a and .organization_b and .report_a and .report_b and .final_report_a and .final_evidence_path and .foreign_path and .tech_a_email and .tech_a_password and .tech_b_email and .tech_b_password and .image_file)' "$state" >/dev/null || blocked "existing_fixture_manifest_invalid"
   echo "STATUS=FIXTURES_READY"; exit 0
 fi
+printf 'ANUBIS storage fixture preparation in progress\n' >"$partial_marker"; chmod 600 "$partial_marker"
 
 tmpdir="$(mktemp -d)"; chmod 700 "$tmpdir"; umask 077; trap 'rm -rf "$tmpdir"' EXIT
 service_headers="$tmpdir/service.headers"; public_headers="$tmpdir/public.headers"
@@ -24,7 +26,8 @@ printf 'header = "apikey: %s"\n' "$SUPABASE_ANON_KEY" >"$public_headers"
 chmod 600 "$service_headers" "$public_headers"
 
 service_post() {
-  local path="$1" body="$2" label="$3" request="$tmpdir/service-$label.conf" output="$tmpdir/service-$label.out"
+  local path="$1" body="$2" label="$3"
+  local request="$tmpdir/service-$label.conf" output="$tmpdir/service-$label.out"
   printf 'url = "%s%s"\nrequest = "POST"\nheader = "Content-Type: application/json"\nheader = "Prefer: return=representation"\ndata-binary = "@%s"\noutput = "%s"\n' \
     "$SUPABASE_URL" "$path" "$body" "$output" >"$request"; chmod 600 "$request"
   curl -sS --noproxy '*' --max-time 20 --config "$service_headers" --config "$request" 2>"$tmpdir/curl.err" || blocked "admin_prepare_failed_$label"
@@ -37,7 +40,8 @@ new_uuid() {
 }
 
 admin_user() {
-  local email="$1" password="$2" label="$3" body="$tmpdir/user-$label.json" request="$tmpdir/user-$label.conf" output="$tmpdir/user-$label.out"
+  local email="$1" password="$2" label="$3"
+  local body="$tmpdir/user-$label.json" request="$tmpdir/user-$label.conf" output="$tmpdir/user-$label.out"
   jq -cn --arg email "$email" --arg password "$password" --arg name "ANUBIS Storage $label" \
     '{email:$email,password:$password,email_confirm:true,user_metadata:{display_name:$name}}' >"$body"
   printf 'url = "%s/auth/v1/admin/users"\nrequest = "POST"\nheader = "Content-Type: application/json"\ndata-binary = "@%s"\noutput = "%s"\n' "$SUPABASE_URL" "$body" "$output" >"$request"
@@ -97,7 +101,8 @@ printf 'url = "%s/storage/v1/object/evidence/%s"\nrequest = "POST"\nheader = "Co
 code="$(curl -sS --noproxy '*' --max-time 20 --config "$service_headers" --config "$tmpdir/final-upload.conf" -w '%{http_code}' 2>"$tmpdir/curl.err")"; [[ "$code" == "200" || "$code" == "201" ]] || blocked "final_object_upload_failed"
 
 login() {
-  local email="$1" password="$2" label="$3" body="$tmpdir/login-$label.json" request="$tmpdir/login-$label.conf" output="$tmpdir/login-$label.out"
+  local email="$1" password="$2" label="$3"
+  local body="$tmpdir/login-$label.json" request="$tmpdir/login-$label.conf" output="$tmpdir/login-$label.out"
   jq -cn --arg email "$email" --arg password "$password" '{email:$email,password:$password}' >"$body"
   printf 'url = "%s/auth/v1/token?grant_type=password"\nrequest = "POST"\nheader = "Content-Type: application/json"\ndata-binary = "@%s"\noutput = "%s"\n' "$SUPABASE_URL" "$body" "$output" >"$request"
   chmod 600 "$body" "$request"; curl -sS --noproxy '*' --max-time 20 --config "$public_headers" --config "$request" 2>"$tmpdir/curl.err" || blocked "fixture_login_failed_$label"
@@ -120,4 +125,5 @@ jq -n --arg org_a "$org_a" --arg org_b "$org_b" --arg report_a "$report_a" --arg
   --arg final_report_a "$final_report_id" --arg final_evidence_path "$final_path" \
   '{schema:2,organization_a:$org_a,organization_b:$org_b,report_a:$report_a,report_b:$report_b,final_report_a:$final_report_a,final_evidence_path:$final_evidence_path,foreign_path:$foreign_path,image_file:$image_file,tech_a_email:$tech_a_email,tech_a_password:$tech_a_password,tech_b_email:$tech_b_email,tech_b_password:$tech_b_password}' >"$tmp_state"
 chmod 600 "$tmp_state"; mv -n "$tmp_state" "$state" || blocked "fixture_manifest_race"; chmod 600 "$state"
+rm -f "$partial_marker"
 echo "STATUS=FIXTURES_READY"

@@ -23,7 +23,7 @@ P1-DATA-API-SMOKE-01 confirmado PASS en Ubuntu: authenticated_org_read, foreign_
 P1-DATA-API-RLS-02 PASS real Ubuntu: 10/10 casos, fixtures PASS, exit 0; cubre anon, NO_ORG, TECHNICIAN asignado/no asignado y cruces Tenant A/B. JWT legítimos, Data API read-only y límites documentados; no acredita revocación.
 P1-DATA-API-RLS-03 BLOCKED real: fixtures y precheck PASS; OWNER TOTP falló HTTP 422; revoke/postcheck no ejecutados. No se declara PASS.
 P1-DATA-API-RLS-04 preparado, no ejecutado: fixtures nuevos para membresía suspendida y entitlement vencido, con JWT reales, fases separadas y PLATFORM ADMIN AAL2 pendiente si no existe token legítimo.
-Wave 02 implementa Storage privado de evidencia, firma PNG con aceptación/satisfacción y descarga PDF autenticada. Corrección de seguridad 007: delete separado de lectura, actor/rol/reporte draft obligatorios, Storage requerido, consentimiento histórico nullable y cleanup físico antes de metadatos. TypeScript PASS, DB 35/35 PASS, diff-check y bash -n PASS; integración real Storage/PDF aún pendiente.
+Wave 02 implementa Storage privado de evidencia, firma PNG con aceptación/satisfacción y descarga PDF autenticada. Migración 008 aplicada y verificada en Ubuntu; integración real Storage/PDF aún pendiente. Hotfix del preparador: se corrigió expansión de `label` bajo `set -u` y se añadió bloqueo persistente de ejecuciones parciales.
 
 ## CURRENT_BLOCKER
 
@@ -33,11 +33,11 @@ Persistencia tras relogin no prueba reinicio de contenedores ni refresh/expiraci
 
 ## CURRENT_TASK
 
-P1-V1-STORAGE-MIGRATION-008.
+P1-V1-STORAGE-REAL-SMOKE.
 
 ## GOAL
 
-Aplicar una sola vez en Ubuntu la migración aditiva 008 sobre la 007 histórica, después del backup y preflight de policies; ejecutar luego el smoke real Storage con fixtures sintéticos nuevos. No declarar PASS desde Windows.
+Ejecutar el smoke real Storage con fixtures sintéticos nuevos. 008 ya está aplicada y verificada en Ubuntu; el primer preparador quedó bloqueado por expansión de `label` sin inicializar y no debe reintentarse hasta validar el marcador de ejecución parcial. No declarar PASS desde Windows.
 URL canonica: https://anubis.snti.local. Guardian conserva :80; ANUBIS conserva Caddy :443 y backend aislado.
 Si no hay acceso autorizado, guiar las pruebas manuales y registrar solo resultados confirmados; nunca pedir secretos.
 
@@ -81,7 +81,7 @@ manual-targeted
 ## DONE_WHEN
 
 La matriz Data API/RLS queda validada en Supabase LOCAL con JWT reales, operaciones positivas/negativas y aislamiento documentado. El runner `scripts/ai/data_api_rls_local.sh` pasa sin imprimir credenciales ni JWT. V1 solo puede cerrarse tras resolver los P0 y completar sus gates reales.
-No cerrar Phase 1 ni inferir otros gates. Ubuntu confirmó 007 histórica con DELETE policies antiguas y `signatures.accepted NOT NULL DEFAULT true`; 008 queda preparada, aún no aplicada. Storage físico sigue NOT RUN.
+No cerrar Phase 1 ni inferir otros gates. 008 aplicada/verificada en Ubuntu. El smoke Storage sigue NOT RUN; el hotfix local pasa mocks de bloqueo parcial e idempotencia.
 
 ## NEXT_IF_SUCCESS
 
