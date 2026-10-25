@@ -1,96 +1,139 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-blocked() { echo "STATUS=BLOCKED reason=$1"; exit 2; }
-fail() { echo "STATUS=FAIL case=$1"; exit 1; }
-pass() { echo "CASE=$1 PASS"; }
-[[ "${ANUBIS_STORAGE_CONFIRM:-}" == "YES" ]] || blocked "explicit_storage_confirmation_required"
-for cmd in curl jq sha256sum stat; do command -v "$cmd" >/dev/null || blocked "${cmd}_missing"; done
+diagnostic() {
+  local status="$1" step="$2" http_code="$3" reason="$4" exit_code="$5"
+  printf 'STATUS=%s\nSTEP=%s\nHTTP_CODE=%s\nREASON=%s\n' "$status" "$step" "$http_code" "$reason" >&2
+  exit "$exit_code"
+}
+blocked() { diagnostic BLOCKED "${1:-preflight}" "${2:-000}" "${3:-precondition}" 2; }
+failed() { diagnostic FAIL "${1:-unknown}" "${2:-000}" "${3:-validation_error}" 1; }
+pass() { printf 'CASE=%s PASS\n' "$1"; }
+
+[[ "${ANUBIS_STORAGE_CONFIRM:-}" == "YES" ]] || blocked confirmation 000 explicit_storage_confirmation_required
+for cmd in curl jq sha256sum stat; do command -v "$cmd" >/dev/null || blocked preflight 000 "${cmd}_missing"; done
 for var in SUPABASE_URL SUPABASE_ANON_KEY ANUBIS_STORAGE_FIXTURE_FILE; do
-  [[ -n "$(printenv "$var" || true)" ]] || blocked "required_environment_missing"
+  [[ -n "$(printenv "$var" || true)" ]] || blocked preflight 000 required_environment_missing
 done
-[[ "$SUPABASE_URL" == "http://127.0.0.1:54321" ]] || blocked "supabase_url_not_loopback"
-[[ -f "$ANUBIS_STORAGE_FIXTURE_FILE" ]] || blocked "fixture_manifest_missing"
+[[ "$SUPABASE_URL" == "http://127.0.0.1:54321" ]] || blocked preflight 000 supabase_url_not_loopback
+[[ -f "$ANUBIS_STORAGE_FIXTURE_FILE" ]] || blocked preflight 000 fixture_manifest_missing
 chmod 600 "$ANUBIS_STORAGE_FIXTURE_FILE"
-tmpdir="$(mktemp -d)"; chmod 700 "$tmpdir"; umask 077
-trap 'rm -rf "$tmpdir"' EXIT
-uuid_re='^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$'
-manifest_get() { jq -er "$1 // empty" "$ANUBIS_STORAGE_FIXTURE_FILE"; }
+
+tmpdir="$(mktemp -d)"; chmod 700 "$tmpdir"; umask 077; trap 'rm -rf "$tmpdir"' EXIT
+uuid_re='^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$'
+manifest_get() {
+  local field="$1" value
+  if ! value="$(jq -er "$field // empty" "$ANUBIS_STORAGE_FIXTURE_FILE" 2>/dev/null)" || [[ -z "$value" ]]; then
+    blocked manifest 000 invalid_manifest_field
+  fi
+  printf '%s\n' "$value"
+}
 org_a="$(manifest_get '.organization_a')"; org_b="$(manifest_get '.organization_b')"
 report_a="$(manifest_get '.report_a')"; report_b="$(manifest_get '.report_b')"
 final_report_a="$(manifest_get '.final_report_a')"; final_path="$(manifest_get '.final_evidence_path')"
 foreign_path="$(manifest_get '.foreign_path')"; image_file="$(manifest_get '.image_file')"
 email_a="$(manifest_get '.tech_a_email')"; password_a="$(manifest_get '.tech_a_password')"
-[[ "$org_a" =~ $uuid_re && "$org_b" =~ $uuid_re && "$report_a" =~ $uuid_re && "$report_b" =~ $uuid_re && "$final_report_a" =~ $uuid_re ]] || blocked "invalid_fixture_uuid"
-[[ -f "$image_file" ]] || blocked "fixture_image_missing"
+[[ "$org_a" =~ $uuid_re && "$org_b" =~ $uuid_re && "$report_a" =~ $uuid_re && "$report_b" =~ $uuid_re && "$final_report_a" =~ $uuid_re ]] || blocked manifest 000 invalid_fixture_uuid
+[[ -f "$image_file" ]] || blocked manifest 000 fixture_image_missing
 
-login() {
-  local email="$1" password="$2" label="$3" body="$tmpdir/login-$label.json" request="$tmpdir/login-$label.conf" output="$tmpdir/login-$label.out" password_file="$tmpdir/password-$label"
-  printf '%s' "$password" >"$password_file"; chmod 600 "$password_file"
-  jq -cn --arg email "$email" --rawfile password "$password_file" '{email:$email,password:($password|rtrimstr("\n"))}' >"$body"; chmod 600 "$body"
-  printf 'url = "%s/auth/v1/token?grant_type=password"\nrequest = "POST"\nheader = "Content-Type: application/json"\ndata-binary = "@%s"\noutput = "%s"\n' "$SUPABASE_URL" "$body" "$output" >"$request"; chmod 600 "$request"
-  printf 'header = "apikey: %s"\n' "$SUPABASE_ANON_KEY" >"$tmpdir/public-$label.conf"; chmod 600 "$tmpdir/public-$label.conf"
-  curl -sS --noproxy '*' --max-time 20 --config "$tmpdir/public-$label.conf" --config "$request" 2>"$tmpdir/curl.err" || blocked "legitimate_login_failed_$label"
-  jq -er '.access_token // empty' "$output" >"$tmpdir/token-$label" || blocked "jwt_missing_$label"
-  chmod 600 "$tmpdir/token-$label"
-  printf 'header = "apikey: %s"\nheader = "Authorization: Bearer %s"\n' "$SUPABASE_ANON_KEY" "$(<"$tmpdir/token-$label")" >"$tmpdir/auth-$label.conf"; chmod 600 "$tmpdir/auth-$label.conf"
+http_run() {
+  local step="$1" headers="$2" request="$3" output="$4"
+  local status_file="$tmpdir/status-$step" curl_rc=0 http_code=""
+  if curl -sS --noproxy '*' --max-time 20 --config "$headers" --config "$request" -o "$output" -w '%{http_code}' >"$status_file" 2>"$tmpdir/curl-$step.err"; then
+    curl_rc=0
+  else
+    curl_rc=$?
+  fi
+  http_code="$(tr -cd '0-9' <"$status_file" || true)"; [[ "$http_code" =~ ^[0-9]{3}$ ]] || http_code=000
+  HTTP_CODE="$http_code"
+  (( curl_rc == 0 )) || blocked "$step" "$http_code" "curl_exit_${curl_rc}"
 }
-login "$email_a" "$password_a" a
+
+require_2xx() {
+  (( HTTP_CODE >= 200 && HTTP_CODE < 300 )) || failed "$1" "$HTTP_CODE" http_non_2xx
+}
 
 api() {
-  local auth="$1" method="$2" url="$3" output="$4" body="${5:-}" request="$tmpdir/request-$RANDOM.conf"
+  local auth="$1" method="$2" url="$3" output="$4" body="${5:-}"
+  local request="$tmpdir/request-$RANDOM.conf"
   if [[ -n "$body" ]]; then
-    printf 'url = "%s"\nrequest = "%s"\nheader = "Content-Type: application/json"\ndata-binary = "@%s"\noutput = "%s"\n' "$url" "$method" "$body" "$output" >"$request"
+    printf 'url = "%s"\nrequest = "%s"\nheader = "Content-Type: application/json"\ndata-binary = "@%s"\n' "$url" "$method" "$body" >"$request"
   else
-    printf 'url = "%s"\nrequest = "%s"\noutput = "%s"\n' "$url" "$method" "$output" >"$request"
+    printf 'url = "%s"\nrequest = "%s"\n' "$url" "$method" >"$request"
   fi
   chmod 600 "$request"
-  curl -sS --noproxy '*' --max-time 20 --config "$auth" --config "$request" -w '%{http_code}' 2>"$tmpdir/curl.err"
+  http_run "api_${method,,}" "$auth" "$request" "$output"
 }
 
-report="$tmpdir/report.json"
-code="$(api "$tmpdir/auth-a.conf" GET "$SUPABASE_URL/rest/v1/reports?id=eq.$report_a&organization_id=eq.$org_a&select=id,status" "$report")" || blocked "report_precheck_request_failed"
-[[ "$code" == "200" ]] || blocked "report_precheck_http_$code"
-[[ "$(jq 'length' "$report")" == "1" && "$(jq -r '.[0].status' "$report")" == "draft" ]] || blocked "draft_fixture_invalid"
+login() {
+  local email="$1" password="$2" label="$3"
+  local body="$tmpdir/login-$label.json" request="$tmpdir/login-$label.conf" output="$tmpdir/login-$label.out"
+  local password_file="$tmpdir/password-$label"
+  printf '%s' "$password" >"$password_file"; chmod 600 "$password_file"
+  if ! jq -cn --arg email "$email" --rawfile password "$password_file" '{email:$email,password:($password|rtrimstr("\n"))}' >"$body"; then
+    failed "login_$label" 000 invalid_request_json
+  fi
+  printf 'url = "%s/auth/v1/token?grant_type=password"\nrequest = "POST"\nheader = "Content-Type: application/json"\ndata-binary = "@%s"\n' "$SUPABASE_URL" "$body" >"$request"; chmod 600 "$request"
+  printf 'header = "apikey: %s"\n' "$SUPABASE_ANON_KEY" >"$tmpdir/public-$label.conf"; chmod 600 "$tmpdir/public-$label.conf"
+  http_run "login_$label" "$tmpdir/public-$label.conf" "$request" "$output"
+  require_2xx "login_$label"
+  if ! jq -e 'type == "object" and (.access_token | type == "string" and length > 0)' "$output" >/dev/null 2>&1; then
+    failed "login_$label" "$HTTP_CODE" missing_access_token
+  fi
+  if ! LOGIN_TOKEN="$(jq -er '.access_token' "$output" 2>/dev/null)"; then
+    failed "login_$label" "$HTTP_CODE" missing_access_token
+  fi
+  printf 'header = "apikey: %s"\nheader = "Authorization: Bearer %s"\n' "$SUPABASE_ANON_KEY" "$LOGIN_TOKEN" >"$tmpdir/auth-$label.conf"; chmod 600 "$tmpdir/auth-$label.conf"
+}
+
+login "$email_a" "$password_a" a
+report="$tmpdir/report.json"; api "$tmpdir/auth-a.conf" GET "$SUPABASE_URL/rest/v1/reports?id=eq.$report_a&organization_id=eq.$org_a&select=id,status" "$report"; require_2xx draft_precheck
+[[ "$(jq 'length' "$report")" == "1" && "$(jq -r '.[0].status' "$report")" == "draft" ]] || blocked draft_precheck "$HTTP_CODE" draft_fixture_invalid
 size="$(stat -c '%s' "$image_file")"
+
 printf '{"p_org":"%s","p_report":"%s","p_mime":"image/png","p_size":%s,"p_caption":"smoke synthetic"}\n' "$org_a" "$report_a" "$size" >"$tmpdir/reserve.json"
-reserve="$tmpdir/reserve.out"; code="$(api "$tmpdir/auth-a.conf" POST "$SUPABASE_URL/rest/v1/rpc/reserve_evidence" "$reserve" "$tmpdir/reserve.json")" || blocked "reserve_request_failed"
-[[ "$code" == "200" ]] || fail "authorized_reservation"
-evidence_id="$(jq -er 'if type == "string" then . else empty end' "$reserve")" || fail "authorized_reservation_id"
+api "$tmpdir/auth-a.conf" POST "$SUPABASE_URL/rest/v1/rpc/reserve_evidence" "$tmpdir/reserve.out" "$tmpdir/reserve.json"
+require_2xx reserve_evidence
+if ! evidence_id="$(jq -er 'if type == "string" then . else empty end' "$tmpdir/reserve.out" 2>/dev/null)"; then failed reserve_evidence "$HTTP_CODE" missing_identifier; fi
 path="$org_a/reports/$report_a/evidence/$evidence_id.png"
-printf 'url = "%s/storage/v1/object/evidence/%s"\nrequest = "POST"\nheader = "Content-Type: image/png"\ndata-binary = "@%s"\noutput = "%s"\n' "$SUPABASE_URL" "$path" "$image_file" "$tmpdir/upload.out" >"$tmpdir/upload.conf"; chmod 600 "$tmpdir/upload.conf"
-code="$(curl -sS --noproxy '*' --max-time 20 --config "$tmpdir/auth-a.conf" --config "$tmpdir/upload.conf" -w '%{http_code}' 2>"$tmpdir/curl.err")" || blocked "upload_request_failed"
-[[ "$code" == "200" || "$code" == "201" ]] || fail "authorized_upload"; pass "authorized_upload"
-download="$tmpdir/download.png"; code="$(api "$tmpdir/auth-a.conf" GET "$SUPABASE_URL/storage/v1/object/evidence/$path" "$download")" || blocked "download_request_failed"
-[[ "$code" == "200" ]] || fail "authorized_download"
-[[ "$(sha256sum "$image_file" | cut -d' ' -f1)" == "$(sha256sum "$download" | cut -d' ' -f1)" ]] || fail "stored_file_integrity"; pass "authorized_read_and_hash"
+printf 'url = "%s/storage/v1/object/evidence/%s"\nrequest = "POST"\nheader = "Content-Type: image/png"\ndata-binary = "@%s"\n' "$SUPABASE_URL" "$path" "$image_file" >"$tmpdir/upload.conf"; chmod 600 "$tmpdir/upload.conf"
+http_run upload "$tmpdir/auth-a.conf" "$tmpdir/upload.conf" "$tmpdir/upload.out"; require_2xx upload; pass authorized_upload
+api "$tmpdir/auth-a.conf" GET "$SUPABASE_URL/storage/v1/object/evidence/$path" "$tmpdir/download.png"; require_2xx authorized_download
+[[ "$(sha256sum "$image_file" | cut -d' ' -f1)" == "$(sha256sum "$tmpdir/download.png" | cut -d' ' -f1)" ]] || failed authorized_download "$HTTP_CODE" stored_file_integrity_mismatch
+pass authorized_read_and_hash
+
 printf 'header = "apikey: %s"\n' "$SUPABASE_ANON_KEY" >"$tmpdir/anon.conf"; chmod 600 "$tmpdir/anon.conf"
-printf 'url = "%s/storage/v1/object/evidence/%s"\noutput = "%s"\n' "$SUPABASE_URL" "$path" "$tmpdir/anon.out" >"$tmpdir/anon-request.conf"; chmod 600 "$tmpdir/anon-request.conf"
-code="$(curl -sS --noproxy '*' --max-time 20 --config "$tmpdir/anon.conf" --config "$tmpdir/anon-request.conf" -w '%{http_code}' 2>"$tmpdir/curl.err")" || blocked "anonymous_request_failed"
-[[ "$code" == "401" || "$code" == "403" ]] || fail "anonymous_denied"; pass "anonymous_denied"
-foreign="$tmpdir/foreign.out"; code="$(api "$tmpdir/auth-a.conf" GET "$SUPABASE_URL/storage/v1/object/evidence/$foreign_path" "$foreign")" || blocked "cross_tenant_request_failed"
-[[ "$code" == "401" || "$code" == "403" || "$code" == "404" ]] || fail "cross_tenant_denied"; pass "cross_tenant_denied"
+printf 'url = "%s/storage/v1/object/evidence/%s"\nrequest = "GET"\n' "$SUPABASE_URL" "$path" >"$tmpdir/anon-request.conf"; chmod 600 "$tmpdir/anon-request.conf"
+http_run anonymous "$tmpdir/anon.conf" "$tmpdir/anon-request.conf" "$tmpdir/anon.out"
+[[ "$HTTP_CODE" == "401" || "$HTTP_CODE" == "403" ]] || failed anonymous "$HTTP_CODE" anonymous_access_not_denied
+pass anonymous_denied
+
+api "$tmpdir/auth-a.conf" GET "$SUPABASE_URL/storage/v1/object/evidence/$foreign_path" "$tmpdir/foreign.out"
+[[ "$HTTP_CODE" == "401" || "$HTTP_CODE" == "403" || "$HTTP_CODE" == "404" ]] || failed cross_tenant "$HTTP_CODE" cross_tenant_access_not_denied
+pass cross_tenant_denied
+
 printf 'url = "%s/storage/v1/object/evidence/%s"\nrequest = "DELETE"\n' "$SUPABASE_URL" "$path" >"$tmpdir/delete.conf"; chmod 600 "$tmpdir/delete.conf"
-code="$(curl -sS --noproxy '*' --max-time 20 --config "$tmpdir/auth-a.conf" --config "$tmpdir/delete.conf" -w '%{http_code}' 2>"$tmpdir/curl.err")" || blocked "delete_request_failed"
-[[ "$code" == "200" || "$code" == "204" ]] || fail "delete_before_finalize"
-printf '{"p_org":"%s","p_evidence":"%s"}\n' "$org_a" "$evidence_id" >"$tmpdir/discard.json"
-code="$(api "$tmpdir/auth-a.conf" POST "$SUPABASE_URL/rest/v1/rpc/discard_evidence" "$tmpdir/discard.out" "$tmpdir/discard.json")" || blocked "discard_request_failed"
-[[ "$code" == "200" ]] || fail "metadata_cleanup"; pass "delete_before_finalize"
-code="$(api "$tmpdir/auth-a.conf" GET "$SUPABASE_URL/storage/v1/object/evidence/$path" "$tmpdir/deleted.out")" || blocked "deleted_object_check_failed"
-[[ "$code" == "401" || "$code" == "403" || "$code" == "404" ]] || fail "deleted_object_orphan"
-code="$(api "$tmpdir/auth-a.conf" GET "$SUPABASE_URL/rest/v1/evidence?organization_id=eq.$org_a&storage_path=eq.$path&select=id" "$tmpdir/deleted-row.out")" || blocked "deleted_metadata_check_failed"
-[[ "$code" == "200" && "$(jq 'length' "$tmpdir/deleted-row.out")" == "0" ]] || fail "deleted_metadata_orphan"
+http_run delete_before_finalize "$tmpdir/auth-a.conf" "$tmpdir/delete.conf" "$tmpdir/delete.out"; require_2xx delete_before_finalize; printf '{"p_org":"%s","p_evidence":"%s"}\n' "$org_a" "$evidence_id" >"$tmpdir/discard.json"
+api "$tmpdir/auth-a.conf" POST "$SUPABASE_URL/rest/v1/rpc/discard_evidence" "$tmpdir/discard.out" "$tmpdir/discard.json"; require_2xx discard_evidence; pass delete_before_finalize
+api "$tmpdir/auth-a.conf" GET "$SUPABASE_URL/storage/v1/object/evidence/$path" "$tmpdir/deleted.out"
+[[ "$HTTP_CODE" == "401" || "$HTTP_CODE" == "403" || "$HTTP_CODE" == "404" ]] || failed cleanup "$HTTP_CODE" deleted_object_present
+api "$tmpdir/auth-a.conf" GET "$SUPABASE_URL/rest/v1/evidence?organization_id=eq.$org_a&storage_path=eq.$path&select=id" "$tmpdir/deleted-row.out"
+require_2xx cleanup
+[[ "$(jq 'length' "$tmpdir/deleted-row.out")" == "0" ]] || failed cleanup "$HTTP_CODE" deleted_metadata_present
+
 printf '{"p_org":"%s","p_report":"%s","p_mime":"image/png","p_size":%s,"p_caption":"compensation synthetic"}\n' "$org_a" "$report_a" "$size" >"$tmpdir/reserve2.json"
-code="$(api "$tmpdir/auth-a.conf" POST "$SUPABASE_URL/rest/v1/rpc/reserve_evidence" "$tmpdir/reserve2.out" "$tmpdir/reserve2.json")" || blocked "compensation_reserve_failed"
-[[ "$code" == "200" ]] || fail "compensation_reserve"; evidence2="$(jq -er 'if type == "string" then . else empty end' "$tmpdir/reserve2.out")" || fail "compensation_id"
+api "$tmpdir/auth-a.conf" POST "$SUPABASE_URL/rest/v1/rpc/reserve_evidence" "$tmpdir/reserve2.out" "$tmpdir/reserve2.json"
+require_2xx compensation
+if ! evidence2="$(jq -er 'if type == "string" then . else empty end' "$tmpdir/reserve2.out" 2>/dev/null)"; then failed compensation "$HTTP_CODE" missing_identifier; fi
 printf '{"p_org":"%s","p_evidence":"%s"}\n' "$org_a" "$evidence2" >"$tmpdir/discard2.json"
-code="$(api "$tmpdir/auth-a.conf" POST "$SUPABASE_URL/rest/v1/rpc/discard_evidence" "$tmpdir/discard2.out" "$tmpdir/discard2.json")" || blocked "compensation_discard_failed"
-[[ "$code" == "200" ]] || fail "compensation_cleanup"; pass "compensation_no_orphan"
-final_read="$tmpdir/final-read.out"; code="$(api "$tmpdir/auth-a.conf" GET "$SUPABASE_URL/storage/v1/object/evidence/$final_path" "$final_read")" || blocked "final_object_precheck_failed"
-[[ "$code" == "200" ]] || blocked "final_object_fixture_missing"
+api "$tmpdir/auth-a.conf" POST "$SUPABASE_URL/rest/v1/rpc/discard_evidence" "$tmpdir/discard2.out" "$tmpdir/discard2.json"; require_2xx compensation_discard; pass compensation_no_orphan
+
+api "$tmpdir/auth-a.conf" GET "$SUPABASE_URL/storage/v1/object/evidence/$final_path" "$tmpdir/final-read.out"
+[[ "$HTTP_CODE" == "200" ]] || blocked finalized_fixture "$HTTP_CODE" final_object_unavailable
 printf 'url = "%s/storage/v1/object/evidence/%s"\nrequest = "DELETE"\n' "$SUPABASE_URL" "$final_path" >"$tmpdir/final-delete.conf"; chmod 600 "$tmpdir/final-delete.conf"
-code="$(curl -sS --noproxy '*' --max-time 20 --config "$tmpdir/auth-a.conf" --config "$tmpdir/final-delete.conf" -w '%{http_code}' 2>"$tmpdir/curl.err")" || blocked "finalized_delete_request_failed"
-[[ "$code" == "401" || "$code" == "403" || "$code" == "404" ]] || fail "delete_after_finalize"
-code="$(api "$tmpdir/auth-a.conf" GET "$SUPABASE_URL/storage/v1/object/evidence/$final_path" "$tmpdir/final-after.out")" || blocked "final_object_postcheck_failed"
-[[ "$code" == "200" ]] || fail "final_object_removed_unexpectedly"; pass "delete_after_finalize"
-echo "STATUS=PASS"
+http_run delete_after_finalize "$tmpdir/auth-a.conf" "$tmpdir/final-delete.conf" "$tmpdir/final-delete.out"
+[[ "$HTTP_CODE" == "401" || "$HTTP_CODE" == "403" || "$HTTP_CODE" == "404" ]] || failed delete_after_finalize "$HTTP_CODE" finalized_delete_not_denied
+api "$tmpdir/auth-a.conf" GET "$SUPABASE_URL/storage/v1/object/evidence/$final_path" "$tmpdir/final-after.out"; require_2xx finalized_postcheck
+[[ "$HTTP_CODE" == "200" ]] || failed delete_after_finalize "$HTTP_CODE" finalized_object_removed
+pass delete_after_finalize
+echo 'STATUS=PASS'
