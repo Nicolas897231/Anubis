@@ -87,6 +87,36 @@ login() {
 }
 
 login "$email_a" "$password_a" a
+
+if [[ "${ANUBIS_STORAGE_ANON_ONLY:-}" == "YES" ]]; then
+  api "$tmpdir/auth-a.conf" GET "$SUPABASE_URL/rest/v1/evidence?organization_id=eq.$org_a&report_id=eq.$report_a&select=id,storage_path" "$tmpdir/readonly-row.out"
+  require_2xx readonly_fixture_lookup
+  if [[ "$(jq 'length' "$tmpdir/readonly-row.out")" != "1" ]]; then
+    blocked readonly_fixture_lookup "$HTTP_CODE" readonly_fixture_ambiguous
+  fi
+  if ! readonly_path="$(jq -er '.[0].storage_path' "$tmpdir/readonly-row.out" 2>/dev/null)"; then
+    blocked readonly_fixture_lookup "$HTTP_CODE" readonly_path_missing
+  fi
+  [[ "$readonly_path" =~ ^$org_a/reports/$report_a/evidence/[0-9a-fA-F-]+\.png$ ]] || blocked readonly_fixture_lookup "$HTTP_CODE" readonly_path_invalid
+  api "$tmpdir/auth-a.conf" GET "$SUPABASE_URL/storage/v1/object/evidence/$readonly_path" "$tmpdir/readonly-auth.out"
+  require_2xx readonly_authenticated
+  [[ "$(sha256sum "$image_file" | cut -d' ' -f1)" == "$(sha256sum "$tmpdir/readonly-auth.out" | cut -d' ' -f1)" ]] || failed readonly_authenticated "$HTTP_CODE" stored_file_integrity_mismatch
+  printf 'header = "apikey: %s"\nheader = "Authorization: Bearer %s"\n' "$SUPABASE_ANON_KEY" "$SUPABASE_ANON_KEY" >"$tmpdir/readonly-anon.conf"; chmod 600 "$tmpdir/readonly-anon.conf"
+  printf 'url = "%s/storage/v1/object/evidence/%s"\nrequest = "GET"\n' "$SUPABASE_URL" "$readonly_path" >"$tmpdir/readonly-anon-request.conf"; chmod 600 "$tmpdir/readonly-anon-request.conf"
+  http_run readonly_anonymous "$tmpdir/readonly-anon.conf" "$tmpdir/readonly-anon-request.conf" "$tmpdir/readonly-anon.out"
+  if [[ "$HTTP_CODE" == "400" ]]; then
+    if jq -e '.code == "InvalidRequest" or .error == "InvalidRequest" or .message == "InvalidRequest"' "$tmpdir/readonly-anon.out" >/dev/null 2>&1; then
+      failed readonly_anonymous "$HTTP_CODE" invalid_storage_request
+    fi
+    failed readonly_anonymous "$HTTP_CODE" unexpected_http_400
+  fi
+  [[ "$HTTP_CODE" == "401" || "$HTTP_CODE" == "403" || "$HTTP_CODE" == "404" ]] || failed readonly_anonymous "$HTTP_CODE" anonymous_access_not_denied
+  if [[ -f "$tmpdir/readonly-anon.out" && "$(sha256sum "$tmpdir/readonly-anon.out" | cut -d' ' -f1)" == "$(sha256sum "$image_file" | cut -d' ' -f1)" ]]; then
+    failed readonly_anonymous "$HTTP_CODE" anonymous_content_exposed
+  fi
+  pass readonly_authenticated; pass readonly_anonymous_denied; echo 'STATUS=PASS'; exit 0
+fi
+
 report="$tmpdir/report.json"; api "$tmpdir/auth-a.conf" GET "$SUPABASE_URL/rest/v1/reports?id=eq.$report_a&organization_id=eq.$org_a&select=id,status" "$report"; require_2xx draft_precheck
 [[ "$(jq 'length' "$report")" == "1" && "$(jq -r '.[0].status' "$report")" == "draft" ]] || blocked draft_precheck "$HTTP_CODE" draft_fixture_invalid
 size="$(stat -c '%s' "$image_file")"
@@ -102,10 +132,19 @@ api "$tmpdir/auth-a.conf" GET "$SUPABASE_URL/storage/v1/object/evidence/$path" "
 [[ "$(sha256sum "$image_file" | cut -d' ' -f1)" == "$(sha256sum "$tmpdir/download.png" | cut -d' ' -f1)" ]] || failed authorized_download "$HTTP_CODE" stored_file_integrity_mismatch
 pass authorized_read_and_hash
 
-printf 'header = "apikey: %s"\n' "$SUPABASE_ANON_KEY" >"$tmpdir/anon.conf"; chmod 600 "$tmpdir/anon.conf"
+printf 'header = "apikey: %s"\nheader = "Authorization: Bearer %s"\n' "$SUPABASE_ANON_KEY" "$SUPABASE_ANON_KEY" >"$tmpdir/anon.conf"; chmod 600 "$tmpdir/anon.conf"
 printf 'url = "%s/storage/v1/object/evidence/%s"\nrequest = "GET"\n' "$SUPABASE_URL" "$path" >"$tmpdir/anon-request.conf"; chmod 600 "$tmpdir/anon-request.conf"
 http_run anonymous "$tmpdir/anon.conf" "$tmpdir/anon-request.conf" "$tmpdir/anon.out"
-[[ "$HTTP_CODE" == "401" || "$HTTP_CODE" == "403" ]] || failed anonymous "$HTTP_CODE" anonymous_access_not_denied
+if [[ "$HTTP_CODE" == "400" ]]; then
+  if jq -e '.code == "InvalidRequest" or .error == "InvalidRequest" or .message == "InvalidRequest"' "$tmpdir/anon.out" >/dev/null 2>&1; then
+    failed anonymous "$HTTP_CODE" invalid_storage_request
+  fi
+  failed anonymous "$HTTP_CODE" unexpected_http_400
+fi
+[[ "$HTTP_CODE" == "401" || "$HTTP_CODE" == "403" || "$HTTP_CODE" == "404" ]] || failed anonymous "$HTTP_CODE" anonymous_access_not_denied
+if [[ -f "$tmpdir/anon.out" && "$(sha256sum "$tmpdir/anon.out" | cut -d' ' -f1)" == "$(sha256sum "$image_file" | cut -d' ' -f1)" ]]; then
+  failed anonymous "$HTTP_CODE" anonymous_content_exposed
+fi
 pass anonymous_denied
 
 api "$tmpdir/auth-a.conf" GET "$SUPABASE_URL/storage/v1/object/evidence/$foreign_path" "$tmpdir/foreign.out"
