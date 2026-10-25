@@ -9,6 +9,15 @@ export async function createDatabase() {
     create role anon nologin;
     create role authenticated nologin;
     create schema auth;
+    create schema storage;
+    create table storage.buckets (
+      id text primary key, name text not null, public boolean not null default false
+    );
+    create table storage.objects (
+      id uuid primary key default gen_random_uuid(), bucket_id text not null,
+      name text not null, owner_id uuid, unique (bucket_id, name)
+    );
+    alter table storage.objects enable row level security;
     create table auth.users (
       id uuid primary key, email text unique, email_confirmed_at timestamptz,
       raw_user_meta_data jsonb not null default '{}'
@@ -17,7 +26,8 @@ export async function createDatabase() {
       $$ select coalesce(nullif(current_setting('request.jwt.claims',true),'')::jsonb,'{}'::jsonb) $$;
     create function auth.uid() returns uuid language sql stable as
       $$ select (auth.jwt()->>'sub')::uuid $$;
-    grant usage on schema public,auth to authenticated,anon;
+    grant usage on schema public,auth,storage to authenticated,anon;
+    grant select,insert,delete on storage.buckets,storage.objects to authenticated,anon;
     grant execute on function auth.jwt(),auth.uid() to authenticated,anon;
   `);
   const directory = new URL("../supabase/migrations/", import.meta.url);

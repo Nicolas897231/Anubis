@@ -23,7 +23,7 @@ P1-DATA-API-SMOKE-01 confirmado PASS en Ubuntu: authenticated_org_read, foreign_
 P1-DATA-API-RLS-02 PASS real Ubuntu: 10/10 casos, fixtures PASS, exit 0; cubre anon, NO_ORG, TECHNICIAN asignado/no asignado y cruces Tenant A/B. JWT legítimos, Data API read-only y límites documentados; no acredita revocación.
 P1-DATA-API-RLS-03 BLOCKED real: fixtures y precheck PASS; OWNER TOTP falló HTTP 422; revoke/postcheck no ejecutados. No se declara PASS.
 P1-DATA-API-RLS-04 preparado, no ejecutado: fixtures nuevos para membresía suspendida y entitlement vencido, con JWT reales, fases separadas y PLATFORM ADMIN AAL2 pendiente si no existe token legítimo.
-Wave 02 implementa Storage privado de evidencia, firma PNG con aceptación/satisfacción y descarga PDF autenticada. TypeScript PASS y DB 35/35 PASS; ESLint focalizado TIMEOUT sin salida; integración real de Storage/PDF aún pendiente. Evidencia en LOCAL_LAB_VALIDATION y V2_TEST_EVIDENCE.
+Wave 02 implementa Storage privado de evidencia, firma PNG con aceptación/satisfacción y descarga PDF autenticada. Corrección de seguridad 007: delete separado de lectura, actor/rol/reporte draft obligatorios, Storage requerido, consentimiento histórico nullable y cleanup físico antes de metadatos. TypeScript PASS, DB 35/35 PASS, diff-check y bash -n PASS; integración real Storage/PDF aún pendiente.
 
 ## CURRENT_BLOCKER
 
@@ -33,11 +33,11 @@ Persistencia tras relogin no prueba reinicio de contenedores ni refresh/expiraci
 
 ## CURRENT_TASK
 
-P1-V1-UBUNTU-RETEST.
+P1-V1-STORAGE-MIGRATION-008.
 
 ## GOAL
 
-Validar en Ubuntu el flujo comercial V1.0: Storage privado, firma y PDF sobre reportes finalizados; no repetir gates PASS ni tocar Guardian.
+Aplicar una sola vez en Ubuntu la migración aditiva 008 sobre la 007 histórica, después del backup y preflight de policies; ejecutar luego el smoke real Storage con fixtures sintéticos nuevos. No declarar PASS desde Windows.
 URL canonica: https://anubis.snti.local. Guardian conserva :80; ANUBIS conserva Caddy :443 y backend aislado.
 Si no hay acceso autorizado, guiar las pruebas manuales y registrar solo resultados confirmados; nunca pedir secretos.
 
@@ -45,14 +45,15 @@ Si no hay acceso autorizado, guiar las pruebas manuales y registrar solo resulta
 
 - Registrar la evidencia real de concurrencia confirmada por el usuario, conservando sus límites.
 - Validar Data API/RLS para anon, sin organización, OWNER, ADMIN, SUPERVISOR, TECHNICIAN, suspendido, revocado, entitlement vencido, Tenant A/B y Platform Admin; smoke-01 ya cubrió lectura autenticada permitida y aislamiento de organización.
-- Usar operaciones permitidas y rechazadas sobre Data API y RPC sin imprimir tokens ni datos sensibles.
+- Usar operaciones permitidas y rechazadas sobre Data API, RPC y Storage sin imprimir tokens ni datos sensibles.
+- Preparar fixtures con Auth Admin/service_role exclusivamente para setup; la identidad sometida a RLS debe usar JWT legítimo no privilegiado.
 
 ## FORBIDDEN_SCOPE
 
 - V1.5/V2, IA, offline avanzado, inventario, garantías, integraciones futuras, ERP, UI/branding o refactors ajenos.
 - Cambiar Auth/MFA/Recovery, RPC de licencias/informes, Docker/Caddy, Guardian o Phase 2.
 - Modificar SQL/RLS/migraciones fuera de los slices Storage/firma autorizados en esta Wave.
-- Ejecutar esta tarea durante la integracion del estandar; solo dejarla preparada.
+- No editar el historial aplicado de 007; si policies antiguas están instaladas, usar migración aditiva 008.
 - Tocar Guardian :80, publicar DB/Studio/correo en LAN, borrar datos/volumenes o desactivar TLS.
 - Recursos cloud, datos de clientes, secretos en chat/Git y full quality gate.
 
@@ -80,7 +81,7 @@ manual-targeted
 ## DONE_WHEN
 
 La matriz Data API/RLS queda validada en Supabase LOCAL con JWT reales, operaciones positivas/negativas y aislamiento documentado. El runner `scripts/ai/data_api_rls_local.sh` pasa sin imprimir credenciales ni JWT. V1 solo puede cerrarse tras resolver los P0 y completar sus gates reales.
-No cerrar Phase 1 ni inferir otros gates. Las confirmaciones anteriores son evidencia manual del usuario, no pruebas repetidas por el agente.
+No cerrar Phase 1 ni inferir otros gates. Ubuntu confirmó 007 histórica con DELETE policies antiguas y `signatures.accepted NOT NULL DEFAULT true`; 008 queda preparada, aún no aplicada. Storage físico sigue NOT RUN.
 
 ## NEXT_IF_SUCCESS
 

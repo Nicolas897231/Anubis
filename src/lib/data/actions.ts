@@ -203,6 +203,7 @@ export async function uploadEvidence(
     .from("evidence")
     .upload(path, file, { contentType: mime, upsert: false });
   if (uploadError) {
+    await supabase.storage.from("evidence").remove([path]);
     await supabase.rpc("discard_evidence", { p_org: organization.id, p_evidence: evidenceId });
     return denied;
   }
@@ -220,7 +221,9 @@ export async function recordSignature(
       report_id: z.uuid(),
       signer_name: z.string().trim().min(1).max(120),
       attestation: z.string().trim().min(1).max(500),
-      satisfaction: z.enum(["satisfied", "neutral", "dissatisfied"]),
+      satisfaction: z
+        .enum(["satisfied", "neutral", "dissatisfied", "not_recorded"])
+        .optional(),
       consent_version: z.string().trim().min(1).max(50),
       accepted: z.literal("yes"),
       signature_data: z.string().regex(/^data:image\/png;base64,[A-Za-z0-9+/=]+$/),
@@ -234,8 +237,9 @@ export async function recordSignature(
     p_report: parsed.data.report_id,
     p_signer: parsed.data.signer_name,
     p_attestation: parsed.data.attestation,
-    p_satisfaction: parsed.data.satisfaction,
+    p_satisfaction: parsed.data.satisfaction ?? "not_recorded",
     p_consent_version: parsed.data.consent_version,
+    p_accepted: parsed.data.accepted === "yes",
   });
   if (recordError || typeof signatureId !== "string") return denied;
   const path = `${organization.id}/reports/${parsed.data.report_id}/signatures/${signatureId}.png`;
@@ -243,6 +247,7 @@ export async function recordSignature(
     .from("signatures")
     .upload(path, bytes, { contentType: "image/png", upsert: false });
   if (uploadError) {
+    await supabase.storage.from("signatures").remove([path]);
     await supabase.rpc("discard_signature", { p_org: organization.id, p_signature: signatureId });
     return denied;
   }

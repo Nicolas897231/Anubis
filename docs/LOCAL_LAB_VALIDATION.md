@@ -69,7 +69,17 @@ Un `401/403`, error de red, fallo de autenticación, JWT cambiado o falta de AAL
 
 Implementado sin ejecución real desde Windows: `supabase/migrations/202610150007_storage.sql`, `scripts/ai/storage_local_smoke.sh`, firma táctil/escrita privada y ruta autenticada `/app/reports/[id]/pdf`. El runner exige confirmación explícita, `SUPABASE_URL=http://127.0.0.1:54321`, JWT obtenido por login legítimo, archivos temporales privados y no usa `service_role`.
 
-Validación local: `npm run test:db` 35/35 PASS, replay de migraciones PASS, TypeScript PASS, `npm run build` PASS y `git diff --check` PASS. `bash -n` no pudo ejecutarse en Windows porque WSL no tiene distribución instalada. ESLint y Vitest focalizado quedaron TIMEOUT sin salida y fueron detenidos. Storage físico, firma y contenido PDF quedan `NOT RUN` hasta Ubuntu.
+Corrección de seguridad: policies delete ya no heredan solo lectura; exigen actor dueño de la reserva, membresía activa, rol permitido y reporte `draft`. `discard_*` exige que el objeto físico haya sido eliminado antes por Storage API. `accepted` no tiene default para no consentir históricos; `record_signature` exige aceptación explícita y permite `not_recorded`.
+
+Validación local: `npm run test:db` 35/35 PASS, replay de migraciones PASS, TypeScript PASS, `git diff --check` PASS y `bash -n` PASS con Git Bash. Storage físico, firma y contenido PDF quedan `NOT RUN` hasta Ubuntu.
+
+Preparación del smoke real Storage: `scripts/ai/storage_local_fixtures.sh` crea, con confirmación separada, dos organizaciones, dos usuarios TECHNICIAN ficticios, informes draft, un objeto privado extranjero y un informe finalizado con objeto privado para comprobar el rechazo de DELETE. El manifiesto y temporales son privados (`600`/`700`), el preparador no reutiliza SMOKE-01/02/03/04 y `service_role` queda limitado a setup. `scripts/ai/storage_local_smoke.sh` autentica legítimamente al técnico A y ejecuta solo pruebas RLS/Storage con loopback exacto; no guarda JWT en el manifiesto.
+
+Estado real: Storage smoke `NOT RUN`; no se declara PASS desde Windows. Antes de ejecutarlo, Ubuntu debe comprobar buckets privados y que las policies DELETE contienen actor, rol activo y estado `draft`. Si el catálogo revela la policy antigua, no se edita 007 aplicada: se prepara una migración aditiva 008 y se detiene el smoke hasta su aplicación autorizada.
+
+## Storage Migration 008 - Estado
+
+Ubuntu confirmó que 007 histórica está aplicada, pero sus DELETE policies solo exigían bucket y `private.can_report`; además `signatures.accepted` quedó `NOT NULL DEFAULT true`. Se creó `supabase/migrations/202610150008_storage_security.sql` para corregirlo sin editar el historial: precondición Storage, buckets privados, revisión de consentimientos históricos, RPC de firma explícita de 7 argumentos, cleanup físico previo y DELETE por actor/rol/membresía activa/tenant/reporte draft. Aplicación 008 y smoke físico: `NOT RUN`.
 
 | Comprobacion                   | Resultado | Alcance confirmado                                                                                        |
 | ------------------------------ | --------- | --------------------------------------------------------------------------------------------------------- |

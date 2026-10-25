@@ -260,7 +260,8 @@ export default async function Page({
               <input type="hidden" name="report_id" value={draft.id} />
               <TextField name="signer_name" label="Nombre del firmante" />
               <TextField name="attestation" label="Texto de constancia" defaultValue="Confirmo que el servicio fue realizado y recibido." maxLength={500} />
-              <SelectField name="satisfaction" label="Satisfaccion del servicio">
+              <SelectField name="satisfaction" label="Satisfaccion del servicio" required={false}>
+                <option value="not_recorded">No calificar ahora</option>
                 <option value="satisfied">Satisfecho</option>
                 <option value="neutral">Neutral</option>
                 <option value="dissatisfied">Insatisfecho</option>

@@ -548,6 +548,7 @@ test("Migration replay, tenant isolation and authorization", async (t) => {
       "Hallazgo ficticio",
       "Recomendacion ficticia",
     ]);
+    let reservedEvidence;
     await t.test(
       "evidence validates MIME, size, generates tenant path",
       async () => {
@@ -575,6 +576,7 @@ test("Migration replay, tenant isolation and authorization", async (t) => {
           "image/png",
           1234,
         ]);
+        reservedEvidence = evidence;
         const row = (
           await run("techA", () =>
             db.query("select storage_path from public.evidence where id=$1", [
@@ -585,6 +587,16 @@ test("Migration replay, tenant isolation and authorization", async (t) => {
         assert.equal(
           row.storage_path,
           `${orgA}/reports/${report}/evidence/${evidence}.png`,
+        );
+        await run("techA", () =>
+          db.query(
+            "insert into storage.objects(bucket_id,name,owner_id) values ('evidence',$1,$2)",
+            [row.storage_path, users.techA],
+          ),
+        );
+        await assert.rejects(
+          call("techA", "discard_evidence", [orgA, reservedEvidence]),
+          /Storage object must be removed first/,
         );
       },
     );
@@ -604,6 +616,7 @@ test("Migration replay, tenant isolation and authorization", async (t) => {
           "Confirmo la recepcion del servicio.",
           "satisfied",
           "receipt-v1",
+          true,
         ]);
         assert.deepEqual(
           (
@@ -617,6 +630,33 @@ test("Migration replay, tenant isolation and authorization", async (t) => {
             satisfaction: "satisfied",
             attestation_text: "Confirmo la recepcion del servicio.",
           },
+        );
+        await assert.rejects(
+          call("techA", "record_signature", [
+            orgA,
+            report,
+            "Receptor Demo",
+            "Sin aceptacion explicita",
+            "satisfied",
+            "receipt-v1",
+            false,
+          ]),
+          /Explicit acceptance/,
+        );
+        const unrated = await call("techA", "record_signature", [
+          orgA,
+          report,
+          "Receptor Demo",
+          "Constancia sin calificacion.",
+          null,
+          "receipt-v1",
+          true,
+        ]);
+        assert.equal(
+          (
+            await db.query("select satisfaction from public.signatures where id=$1", [unrated])
+          ).rows[0].satisfaction,
+          "not_recorded",
         );
         assert.deepEqual(
           (
@@ -634,6 +674,10 @@ test("Migration replay, tenant isolation and authorization", async (t) => {
         await assert.rejects(
           call("techA", "reserve_evidence", [orgA, report, "image/png", 20]),
           /immutable/,
+        );
+        await assert.rejects(
+          call("techA", "discard_evidence", [orgA, reservedEvidence]),
+          /Evidence reservation unavailable/,
         );
         await assert.rejects(
           db.query(
