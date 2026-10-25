@@ -113,7 +113,8 @@ service_post() {
 }
 
 service_get() {
-  local path="$1" label="$2" output="$tmpdir/service-$label.out" request="$tmpdir/service-$label.conf"
+  local path="$1" label="$2"
+  local output="$tmpdir/service-$label.out" request="$tmpdir/service-$label.conf"
   printf 'url = "%s%s"\nrequest = "GET"\n' "$SUPABASE_URL" "$path" >"$request"; chmod 600 "$request"
   http_run "rest_$label" "$service_headers" "$request" "$output"
 }
