@@ -3,11 +3,51 @@ set -Eeuo pipefail
 
 diagnostic() {
   local status="$1" step="$2" http_code="$3" reason="$4" exit_code="$5"
-  printf 'STATUS=%s\nSTEP=%s\nHTTP_CODE=%s\nREASON=%s\n' "$status" "$step" "$http_code" "$reason"
+  printf 'STATUS=%s\nSTEP=%s\nHTTP_CODE=%s\nREASON=%s\n' "$status" "$step" "$http_code" "$reason" >&2
   exit "$exit_code"
 }
 blocked() { diagnostic BLOCKED "${1:-preflight}" "${2:-000}" "${3:-precondition}" 2; }
 failed() { diagnostic FAIL "${1:-unknown}" "${2:-000}" "${3:-validation_error}" 1; }
+
+format_uuid() {
+  local hex="$1" variant="$2" uuid
+  [[ "$hex" =~ ^[0-9a-f]{32}$ ]] || failed uuid_generation 000 invalid_uuid_entropy
+  uuid="${hex:0:8}-${hex:8:4}-4${hex:13:3}-${variant}${hex:17:3}-${hex:20:12}"
+  [[ "$uuid" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$ ]] || failed uuid_generation 000 invalid_uuid_v4
+  printf '%s\n' "$uuid"
+}
+
+new_uuid() {
+  local hex variant
+  if ! hex="$(openssl rand -hex 16 2>/dev/null)"; then
+    failed uuid_generation 000 openssl_error
+  fi
+  case $((RANDOM % 4)) in
+    0) variant=8 ;;
+    1) variant=9 ;;
+    2) variant=a ;;
+    3) variant=b ;;
+  esac
+  format_uuid "$hex" "$variant"
+}
+
+if [[ "${ANUBIS_STORAGE_FIXTURE_UUID_SELFTEST:-}" == "YES" ]]; then
+  command -v openssl >/dev/null || blocked uuid_selftest 000 openssl_missing
+  new_uuid >/dev/null
+  if ! entropy="$(openssl rand -hex 16000 2>/dev/null)"; then blocked uuid_selftest 000 openssl_error; fi
+  [[ "${#entropy}" -eq 32000 ]] || failed uuid_selftest 000 invalid_entropy_batch
+  for ((i = 0; i < 1000; i++)); do
+    case $((i % 4)) in
+      0) format_uuid "${entropy:i*32:32}" 8 >/dev/null ;;
+      1) format_uuid "${entropy:i*32:32}" 9 >/dev/null ;;
+      2) format_uuid "${entropy:i*32:32}" a >/dev/null ;;
+      3) format_uuid "${entropy:i*32:32}" b >/dev/null ;;
+    esac
+  done
+  echo 'STATUS=MOCK_PASS UUIDS=1000'
+  exit 0
+fi
+
 [[ "${ANUBIS_STORAGE_FIXTURE_CONFIRM:-}" == "YES" ]] || blocked "explicit_fixture_confirmation_required"
 for cmd in curl jq openssl base64 stat; do command -v "$cmd" >/dev/null || blocked "${cmd}_missing"; done
 for var in SUPABASE_URL SUPABASE_ANON_KEY SUPABASE_SERVICE_ROLE_KEY ANUBIS_STORAGE_FIXTURE_FILE; do
@@ -72,9 +112,10 @@ service_post() {
   extract_id "rest_$label" "$output" '.[0].id // .[0].organization_id // .id'
 }
 
-new_uuid() {
-  local hex; hex="$(openssl rand -hex 16)"
-  printf '%s-%s-4%s-%s%s-%s\n' "${hex:0:8}" "${hex:8:4}" "${hex:13:3}" "$((8 + RANDOM % 4))" "${hex:16:3}" "${hex:19:12}"
+service_get() {
+  local path="$1" label="$2" output="$tmpdir/service-$label.out" request="$tmpdir/service-$label.conf"
+  printf 'url = "%s%s"\nrequest = "GET"\n' "$SUPABASE_URL" "$path" >"$request"; chmod 600 "$request"
+  http_run "rest_$label" "$service_headers" "$request" "$output"
 }
 
 admin_user() {
@@ -102,8 +143,8 @@ printf '{"name":"ANUBIS Storage Fixture B","status":"active"}' >"$tmpdir/org-b.j
 service_post /rest/v1/organizations "$tmpdir/org-b.json" org_b; org_b="$RESULT_ID"
 printf '{"organization_id":"%s","plan_code":"EQUIPO","seat_limit":4,"status":"active","valid_until":null}' "$org_a" >"$tmpdir/sub-a.json"
 printf '{"organization_id":"%s","plan_code":"EQUIPO","seat_limit":4,"status":"active","valid_until":null}' "$org_b" >"$tmpdir/sub-b.json"
-service_post /rest/v1/subscriptions "$tmpdir/sub-a.json" sub_a >/dev/null
-service_post /rest/v1/subscriptions "$tmpdir/sub-b.json" sub_b >/dev/null
+service_post /rest/v1/subscriptions "$tmpdir/sub-a.json" sub_a
+service_post /rest/v1/subscriptions "$tmpdir/sub-b.json" sub_b
 printf '{"organization_id":"%s","profile_id":"%s","role":"TECHNICIAN","status":"active"}' "$org_a" "$tech_a_id" >"$tmpdir/member-a.json"
 printf '{"organization_id":"%s","profile_id":"%s","role":"TECHNICIAN","status":"active"}' "$org_b" "$tech_b_id" >"$tmpdir/member-b.json"
 service_post /rest/v1/memberships "$tmpdir/member-a.json" member_a; member_a="$RESULT_ID"
@@ -119,8 +160,8 @@ service_post /rest/v1/services "$tmpdir/service-a.json" service_a; service_a="$R
 service_post /rest/v1/services "$tmpdir/service-b.json" service_b; service_b="$RESULT_ID"
 printf '{"organization_id":"%s","service_id":"%s","technician_membership_id":"%s","assigned_by":"%s"}' "$org_a" "$service_a" "$member_a" "$member_a" >"$tmpdir/assignment-a.json"
 printf '{"organization_id":"%s","service_id":"%s","technician_membership_id":"%s","assigned_by":"%s"}' "$org_b" "$service_b" "$member_b" "$member_b" >"$tmpdir/assignment-b.json"
-service_post /rest/v1/service_assignments "$tmpdir/assignment-a.json" assignment_a >/dev/null
-service_post /rest/v1/service_assignments "$tmpdir/assignment-b.json" assignment_b >/dev/null
+service_post /rest/v1/service_assignments "$tmpdir/assignment-a.json" assignment_a
+service_post /rest/v1/service_assignments "$tmpdir/assignment-b.json" assignment_b
 printf '{"organization_id":"%s","service_id":"%s","created_by":"%s","version":1,"status":"draft","work_performed":"Synthetic Storage Work","findings":"Synthetic","recommendations":"Synthetic"}' "$org_a" "$service_a" "$member_a" >"$tmpdir/report-a.json"
 printf '{"organization_id":"%s","service_id":"%s","created_by":"%s","version":1,"status":"draft","work_performed":"Synthetic Storage Work","findings":"Synthetic","recommendations":"Synthetic"}' "$org_b" "$service_b" "$member_b" >"$tmpdir/report-b.json"
 service_post /rest/v1/reports "$tmpdir/report-a.json" report_a; report_a="$RESULT_ID"
@@ -130,15 +171,24 @@ image_file="$state_dir/storage-valid-$(date +%s%N).png"
 printf 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=' | base64 -d >"$image_file"; chmod 600 "$image_file"
 size="$(stat -c '%s' "$image_file")"
 final_service_id="$(new_uuid)"; final_report_id="$(new_uuid)"; final_evidence_id="$(new_uuid)"
-printf '{"id":"%s","organization_id":"%s","client_id":"%s","created_by":"%s","subject":"Synthetic Final Storage Service","service_type":"maintenance","status":"completed","started_at":"%s","completed_at":"%s"}' "$final_service_id" "$org_a" "$client_a" "$member_a" "$now" "$now" >"$tmpdir/final-service.json"
-service_post /rest/v1/services "$tmpdir/final-service.json" final_service >/dev/null
+printf '{"id":"%s","organization_id":"%s","client_id":"%s","created_by":"%s","subject":"Synthetic Final Storage Service","service_type":"maintenance","status":"report_generated","started_at":"%s","completed_at":"%s"}' "$final_service_id" "$org_a" "$client_a" "$member_a" "$now" "$now" >"$tmpdir/final-service.json"
+service_post /rest/v1/services "$tmpdir/final-service.json" final_service
 printf '{"id":"%s","organization_id":"%s","service_id":"%s","created_by":"%s","version":1,"status":"finalized","work_performed":"Synthetic finalized work","finalized_at":"%s","snapshot":{}}' "$final_report_id" "$org_a" "$final_service_id" "$member_a" "$now" >"$tmpdir/final-report.json"
-service_post /rest/v1/reports "$tmpdir/final-report.json" final_report >/dev/null
+service_post /rest/v1/reports "$tmpdir/final-report.json" final_report
 final_path="$org_a/reports/$final_report_id/evidence/$final_evidence_id.png"
 printf '{"id":"%s","organization_id":"%s","report_id":"%s","uploaded_by":"%s","storage_path":"%s","mime_type":"image/png","size_bytes":%s,"caption":"Synthetic finalized object"}' "$final_evidence_id" "$org_a" "$final_report_id" "$member_a" "$final_path" "$size" >"$tmpdir/final-evidence.json"
-service_post /rest/v1/evidence "$tmpdir/final-evidence.json" final_evidence >/dev/null
+service_post /rest/v1/evidence "$tmpdir/final-evidence.json" final_evidence
 printf 'url = "%s/storage/v1/object/evidence/%s"\nrequest = "POST"\nheader = "Content-Type: image/png"\ndata-binary = "@%s"\n' "$SUPABASE_URL" "$final_path" "$image_file" >"$tmpdir/final-upload.conf"; chmod 600 "$tmpdir/final-upload.conf"
 http_run final_object_upload "$service_headers" "$tmpdir/final-upload.conf" "$tmpdir/final-upload.out"
+# This is an administrative synthetic fixture only; the application/RPC remains the RLS finalization path.
+service_get "/rest/v1/services?id=eq.$final_service_id&organization_id=eq.$org_a&select=id,status" final_service_check
+if ! jq -e 'type == "array" and length == 1 and .[0].status == "report_generated"' "$tmpdir/service-final_service_check.out" >/dev/null 2>&1; then
+  failed final_service_check "$HTTP_CODE" final_service_state_invalid
+fi
+service_get "/rest/v1/reports?id=eq.$final_report_id&organization_id=eq.$org_a&select=id,status,finalized_at" final_report_check
+if ! jq -e 'type == "array" and length == 1 and .[0].status == "finalized" and (.[0].finalized_at | type == "string")' "$tmpdir/service-final_report_check.out" >/dev/null 2>&1; then
+  failed final_report_check "$HTTP_CODE" final_report_state_invalid
+fi
 
 login() {
   local email="$1" password="$2" label="$3"
