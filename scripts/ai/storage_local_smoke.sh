@@ -105,12 +105,13 @@ if [[ "${ANUBIS_STORAGE_ANON_ONLY:-}" == "YES" ]]; then
   printf 'url = "%s/storage/v1/object/evidence/%s"\nrequest = "GET"\n' "$SUPABASE_URL" "$readonly_path" >"$tmpdir/readonly-anon-request.conf"; chmod 600 "$tmpdir/readonly-anon-request.conf"
   http_run readonly_anonymous "$tmpdir/readonly-anon.conf" "$tmpdir/readonly-anon-request.conf" "$tmpdir/readonly-anon.out"
   if [[ "$HTTP_CODE" == "400" ]]; then
-    if jq -e '.code == "InvalidRequest" or .error == "InvalidRequest" or .message == "InvalidRequest"' "$tmpdir/readonly-anon.out" >/dev/null 2>&1; then
-      failed readonly_anonymous "$HTTP_CODE" invalid_storage_request
+    if ! jq -e '.code == "NoSuchKey" and .error == "not_found" and .statusCode == 404' "$tmpdir/readonly-anon.out" >/dev/null 2>&1; then
+      if jq -e '.code == "InvalidRequest" or .error == "InvalidRequest" or .message == "InvalidRequest"' "$tmpdir/readonly-anon.out" >/dev/null 2>&1; then failed readonly_anonymous "$HTTP_CODE" invalid_storage_request; fi
+      failed readonly_anonymous "$HTTP_CODE" unexpected_http_400
     fi
-    failed readonly_anonymous "$HTTP_CODE" unexpected_http_400
+  else
+    [[ "$HTTP_CODE" == "401" || "$HTTP_CODE" == "403" || "$HTTP_CODE" == "404" ]] || failed readonly_anonymous "$HTTP_CODE" anonymous_access_not_denied
   fi
-  [[ "$HTTP_CODE" == "401" || "$HTTP_CODE" == "403" || "$HTTP_CODE" == "404" ]] || failed readonly_anonymous "$HTTP_CODE" anonymous_access_not_denied
   if [[ -f "$tmpdir/readonly-anon.out" && "$(sha256sum "$tmpdir/readonly-anon.out" | cut -d' ' -f1)" == "$(sha256sum "$image_file" | cut -d' ' -f1)" ]]; then
     failed readonly_anonymous "$HTTP_CODE" anonymous_content_exposed
   fi
@@ -136,12 +137,13 @@ printf 'header = "apikey: %s"\nheader = "Authorization: Bearer %s"\n' "$SUPABASE
 printf 'url = "%s/storage/v1/object/evidence/%s"\nrequest = "GET"\n' "$SUPABASE_URL" "$path" >"$tmpdir/anon-request.conf"; chmod 600 "$tmpdir/anon-request.conf"
 http_run anonymous "$tmpdir/anon.conf" "$tmpdir/anon-request.conf" "$tmpdir/anon.out"
 if [[ "$HTTP_CODE" == "400" ]]; then
-  if jq -e '.code == "InvalidRequest" or .error == "InvalidRequest" or .message == "InvalidRequest"' "$tmpdir/anon.out" >/dev/null 2>&1; then
-    failed anonymous "$HTTP_CODE" invalid_storage_request
+  if ! jq -e '.code == "NoSuchKey" and .error == "not_found" and .statusCode == 404' "$tmpdir/anon.out" >/dev/null 2>&1; then
+    if jq -e '.code == "InvalidRequest" or .error == "InvalidRequest" or .message == "InvalidRequest"' "$tmpdir/anon.out" >/dev/null 2>&1; then failed anonymous "$HTTP_CODE" invalid_storage_request; fi
+    failed anonymous "$HTTP_CODE" unexpected_http_400
   fi
-  failed anonymous "$HTTP_CODE" unexpected_http_400
+else
+  [[ "$HTTP_CODE" == "401" || "$HTTP_CODE" == "403" || "$HTTP_CODE" == "404" ]] || failed anonymous "$HTTP_CODE" anonymous_access_not_denied
 fi
-[[ "$HTTP_CODE" == "401" || "$HTTP_CODE" == "403" || "$HTTP_CODE" == "404" ]] || failed anonymous "$HTTP_CODE" anonymous_access_not_denied
 if [[ -f "$tmpdir/anon.out" && "$(sha256sum "$tmpdir/anon.out" | cut -d' ' -f1)" == "$(sha256sum "$image_file" | cut -d' ' -f1)" ]]; then
   failed anonymous "$HTTP_CODE" anonymous_content_exposed
 fi
