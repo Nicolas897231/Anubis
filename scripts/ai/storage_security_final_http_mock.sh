@@ -17,6 +17,8 @@ if [[ "${1:-}" == -* ]]; then expr="${2:-}"; else expr="${1:-}"; fi
 file="${3:-}"
 [[ "$file" == "$expr" ]] && file=""
 content=""; [[ -n "$file" && -f "$file" ]] && content="$(<"$file")"
+if [[ "$expr" == *'NoSuchKey'* ]]; then [[ "$content" == *'"code":"NoSuchKey"'* && "$content" == *'"error":"not_found"'* && ( "$content" == *'"statusCode":404'* || "$content" == *'"statusCode":"404"'* ) ]]; exit; fi
+if [[ "$expr" == *'AccessDenied'* || "$expr" == *'Unauthorized'* || "$expr" == *'Forbidden'* ]]; then [[ "$content" == *'"code":"AccessDenied"'* || "$content" == *'"code":"Unauthorized"'* || "$content" == *'"code":"Forbidden"'* || "$content" == *'"error":"AccessDenied"'* || "$content" == *'"error":"Unauthorized"'* || "$content" == *'"error":"Forbidden"'* ]]; exit; fi
 if [[ "$expr" == *'.access_token'* ]]; then [[ "$(<"$MOCK_TOKEN_FILE")" == b ]] && printf 'mock-jwt-b' || printf 'mock-jwt-a'; exit 0; fi
 if [[ "$expr" == *'.organization_a'* ]]; then printf '11111111-1111-4111-8111-111111111111'; exit 0; fi
 if [[ "$expr" == *'.organization_b'* ]]; then printf '22222222-2222-4222-8222-222222222222'; exit 0; fi
@@ -50,6 +52,10 @@ code=200; body='{}'; case "${MOCK_CASE:-positive}:$method:$url" in
   cross_leak:GET:*'22222222-2222-4222-8222-222222222222/reports/'*) :;;
   delete_leak:DELETE:*'/storage/v1/object/evidence/'*) :;;
   final_delete_leak:DELETE:*'55555555-5555-4555-8555-555555555555/evidence/'*) :;;
+  delete_access_denied_400:DELETE:*'/storage/v1/object/evidence/'*) code=400; body='{\"code\":\"AccessDenied\",\"error\":\"access_denied\",\"statusCode\":400}';;
+  delete_nosuchkey_400:DELETE:*'/storage/v1/object/evidence/'*) code=400; body='{\"code\":\"NoSuchKey\",\"error\":\"not_found\",\"statusCode\":\"404\"}';;
+  delete_invalid_request_400:DELETE:*'/storage/v1/object/evidence/'*) code=400; body='{\"code\":\"InvalidRequest\",\"error\":\"invalid_request\",\"statusCode\":400}';;
+  delete_html_400:DELETE:*'/storage/v1/object/evidence/'*) code=400; body='<html>bad request</html>';;
   *)
     if [[ "$method" == DELETE && "$url" == *'/storage/v1/object/evidence/'* ]]; then code=403; fi
     if [[ "$method" == GET && "$url" == *'22222222-2222-4222-8222-222222222222/reports/'* ]]; then code=403; fi
@@ -70,8 +76,11 @@ if [[ "$url" == *'/storage/v1/object/evidence/'* && "$method" == GET && "$code" 
 [[ -z "$out" ]] || { [[ -f "$out" ]] || printf '%s' "$body" >"$out"; }; printf '%s' "$code"
 MOCK
 chmod 700 "$mockbin/curl"
-run_case() { local name="$1"; local output="$tmpdir/$name.out" rc; set +e; env PATH="$mockbin:$PATH" MOCK_IMAGE_FILE="$image" MOCK_TOKEN_FILE="$tmpdir/$name.token" MOCK_CASE="$name" ANUBIS_STORAGE_CONFIRM=YES SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_ANON_KEY=mock ANUBIS_STORAGE_FIXTURE_FILE="$manifest" bash "$script" >"$output" 2>&1; rc=$?; set -e; [[ "$rc" -ne 0 ]] && grep -q '^STATUS=FAIL$' "$output" && grep -q '^STEP=' "$output" || { echo "MOCK_FAIL=$name"; exit 1; }; }
+run_case() { local name="$1"; local output="$tmpdir/$name.out" rc; set +e; env PATH="$mockbin:$PATH" MOCK_IMAGE_FILE="$image" MOCK_TOKEN_FILE="$tmpdir/$name.token" MOCK_CASE="$name" ANUBIS_STORAGE_PHASE=AB ANUBIS_STORAGE_CONFIRM=YES SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_ANON_KEY=mock ANUBIS_STORAGE_FIXTURE_FILE="$manifest" bash "$script" >"$output" 2>&1; rc=$?; set -e; [[ "$rc" -ne 0 ]] && grep -q '^STATUS=FAIL$' "$output" && grep -q '^STEP=' "$output" || { echo "MOCK_FAIL=$name"; exit 1; }; }
+run_positive_denial() { local name="$1" output="$tmpdir/$name.out"; env PATH="$mockbin:$PATH" MOCK_IMAGE_FILE="$image" MOCK_TOKEN_FILE="$tmpdir/$name.token" MOCK_CASE="$name" ANUBIS_STORAGE_PHASE=AB ANUBIS_STORAGE_CONFIRM=YES SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_ANON_KEY=mock ANUBIS_STORAGE_FIXTURE_FILE="$manifest" bash "$script" >"$output" 2>&1 || { cat "$output"; exit 1; }; grep -q '^STATUS=PASS$' "$output" || { echo "MOCK_FAIL=$name"; exit 1; }; }
 env PATH="$mockbin:$PATH" MOCK_IMAGE_FILE="$image" MOCK_TOKEN_FILE="$tmpdir/positive.token" MOCK_STATE_FILE="$tmpdir/positive.state" MOCK_CASE=positive ANUBIS_STORAGE_CONFIRM=YES ANUBIS_STORAGE_DELETE_POSITIVE_CONFIRM=YES SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_ANON_KEY=mock ANUBIS_STORAGE_FIXTURE_FILE="$manifest" bash "$script" >"$tmpdir/positive.out" 2>&1 || { cat "$tmpdir/positive.out"; exit 1; }
 grep -q '^STATUS=PASS$' "$tmpdir/positive.out" || { echo MOCK_FAIL=positive; exit 1; }
 for case_name in cross_leak delete_leak final_delete_leak unexpected_400; do run_case "$case_name"; done
+for case_name in delete_access_denied_400 delete_nosuchkey_400; do run_positive_denial "$case_name"; done
+for case_name in delete_invalid_request_400 delete_html_400; do run_case "$case_name"; done
 echo STATUS=MOCK_PASS
