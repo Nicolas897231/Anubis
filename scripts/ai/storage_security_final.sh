@@ -61,16 +61,22 @@ login() {
   RESULT_TOKEN="$(jq -er '.access_token' "$output")"
   printf 'header = "apikey: %s"\nheader = "Authorization: Bearer %s"\n' "$SUPABASE_ANON_KEY" "$RESULT_TOKEN" >"$tmpdir/auth-$label.conf"; chmod 600 "$tmpdir/auth-$label.conf"
 }
+sanitized_json_error() {
+  local body="$1" code_value error_value status_value
+  code_value="$(jq -r 'if type == "object" and (.code | type == "string") then .code else "unavailable" end' "$body" 2>/dev/null || printf 'unavailable')"
+  error_value="$(jq -r 'if type == "object" and (.error | type == "string") then .error else "unavailable" end' "$body" 2>/dev/null || printf 'unavailable')"
+  status_value="$(jq -r 'if type == "object" and ((.statusCode | type == "string") or (.statusCode | type == "number")) then (.statusCode|tostring) else "unavailable" end' "$body" 2>/dev/null || printf 'unavailable')"
+  code_value="$(printf '%s' "$code_value" | tr -cd '[:alnum:]_.-')"
+  error_value="$(printf '%s' "$error_value" | tr -cd '[:alnum:]_.-')"
+  status_value="$(printf '%s' "$status_value" | tr -cd '[:alnum:]_.-')"
+  printf 'JSON_CODE=%s\nJSON_ERROR=%s\nJSON_STATUS_CODE=%s\n' "$code_value" "$error_value" "$status_value" >&2
+}
 deny_or_nosuchkey() {
-  local step="$1" body="$2" code_value error_value status_value
+  local step="$1" body="$2"
   if [[ "$HTTP_CODE" == 400 ]]; then
     if jq -e 'type == "object" and .code == "NoSuchKey" and .error == "not_found" and (.statusCode == 404 or .statusCode == "404")' "$body" >/dev/null 2>&1; then return 0; fi
     if jq -e 'type == "object" and (((.code // "") | IN("AccessDenied","Unauthorized","Forbidden")) or ((.error // "") | IN("AccessDenied","Unauthorized","Forbidden")))' "$body" >/dev/null 2>&1; then return 0; fi
-    code_value="$(jq -r 'if type == "object" and (.code | type == "string") then .code else "unavailable" end' "$body" 2>/dev/null || printf 'unavailable')"
-    error_value="$(jq -r 'if type == "object" and (.error | type == "string") then .error else "unavailable" end' "$body" 2>/dev/null || printf 'unavailable')"
-    status_value="$(jq -r 'if type == "object" and ((.statusCode | type == "string") or (.statusCode | type == "number")) then (.statusCode|tostring) else "unavailable" end' "$body" 2>/dev/null || printf 'unavailable')"
-    code_value="$(printf '%s' "$code_value" | tr -cd '[:alnum:]_.-')"; error_value="$(printf '%s' "$error_value" | tr -cd '[:alnum:]_.-')"; status_value="$(printf '%s' "$status_value" | tr -cd '[:alnum:]_.-')"
-    printf 'JSON_CODE=%s\nJSON_ERROR=%s\nJSON_STATUS_CODE=%s\n' "\${code_value:-unavailable}" "\${error_value:-unavailable}" "\${status_value:-unavailable}" >&2
+    sanitized_json_error "$body"
     return 1
   else
     [[ "$HTTP_CODE" == 401 || "$HTTP_CODE" == 403 || "$HTTP_CODE" == 404 ]] || return 1
@@ -78,6 +84,7 @@ deny_or_nosuchkey() {
 }
 hash_matches() { [[ "$(sha256sum "$1" | cut -d' ' -f1)" == "$(sha256sum "$2" | cut -d' ' -f1)" ]] || failed "$3" "$HTTP_CODE" content_hash_mismatch; }
 preserved_object() { local step="$1" path="$2" expected_image="$3"; api "$tmpdir/auth-a.conf" GET "$SUPABASE_URL/storage/v1/object/evidence/$path" "$tmpdir/$step-object.out"; (( HTTP_CODE >= 200 && HTTP_CODE < 300 )) || failed "$step" "$HTTP_CODE" SECURITY_FAIL; hash_matches "$expected_image" "$tmpdir/$step-object.out" "$step"; }
+require_readable() { local step="$1" body="$2"; (( HTTP_CODE >= 200 && HTTP_CODE < 300 )) && return 0; [[ "$HTTP_CODE" == "400" ]] && sanitized_json_error "$body"; failed "$step" "$HTTP_CODE" finalized_read_unavailable; }
 path_for_org() { [[ "$1" =~ ^$2/reports/[0-9a-fA-F-]+/evidence/[0-9a-fA-F-]+\.png$ ]]; }
 
 login "$email_a" "$password_a" a; token_a="$RESULT_TOKEN"
@@ -106,9 +113,10 @@ api "$tmpdir/auth-a.conf" GET "$SUPABASE_URL/rest/v1/evidence?organization_id=eq
 (( draft_delete_ok == 1 )) || failed draft_delete_b "$draft_delete_http_code" unexpected_storage_denial
 pass draft_delete_denied
 
-api "$tmpdir/auth-a.conf" GET "$SUPABASE_URL/storage/v1/object/evidence/$final_path" "$tmpdir/final-before.out"; require_2xx finalized_read_before; hash_matches "$image_file" "$tmpdir/final-before.out" finalized_read_before
 api "$tmpdir/auth-a.conf" GET "$SUPABASE_URL/rest/v1/evidence?organization_id=eq.$org_a&storage_path=eq.$final_path&select=id,storage_path" "$tmpdir/final-meta-before.out"; require_2xx finalized_meta_before
 final_meta_before="$(jq -c '.[0]' "$tmpdir/final-meta-before.out")"; [[ "$final_meta_before" != null && -n "$final_meta_before" ]] || blocked finalized_meta_before "$HTTP_CODE" finalized_metadata_missing
+[[ "$(jq 'type == "array" and length' "$tmpdir/final-meta-before.out")" == true ]] || blocked finalized_meta_before "$HTTP_CODE" finalized_metadata_ambiguous
+api "$tmpdir/auth-a.conf" GET "$SUPABASE_URL/storage/v1/object/evidence/$final_path" "$tmpdir/final-before.out"; require_readable finalized_read_before "$tmpdir/final-before.out"; hash_matches "$image_file" "$tmpdir/final-before.out" finalized_read_before
 printf 'url = "%s/storage/v1/object/evidence/%s"\nrequest = "DELETE"\n' "$SUPABASE_URL" "$final_path" >"$tmpdir/final-delete.conf"; chmod 600 "$tmpdir/final-delete.conf"
 http_run finalized_delete "$tmpdir/auth-a.conf" "$tmpdir/final-delete.conf" "$tmpdir/final-delete.out"; finalized_delete_http_code="$HTTP_CODE"; finalized_delete_ok=0; deny_or_nosuchkey finalized_delete "$tmpdir/final-delete.out" && finalized_delete_ok=1
 preserved_object finalized_postcheck "$final_path" "$image_file"
