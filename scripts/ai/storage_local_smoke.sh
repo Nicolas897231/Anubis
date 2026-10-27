@@ -105,7 +105,7 @@ if [[ "${ANUBIS_STORAGE_ANON_ONLY:-}" == "YES" ]]; then
   printf 'url = "%s/storage/v1/object/evidence/%s"\nrequest = "GET"\n' "$SUPABASE_URL" "$readonly_path" >"$tmpdir/readonly-anon-request.conf"; chmod 600 "$tmpdir/readonly-anon-request.conf"
   http_run readonly_anonymous "$tmpdir/readonly-anon.conf" "$tmpdir/readonly-anon-request.conf" "$tmpdir/readonly-anon.out"
   if [[ "$HTTP_CODE" == "400" ]]; then
-    if ! jq -e '.code == "NoSuchKey" and .error == "not_found" and .statusCode == 404' "$tmpdir/readonly-anon.out" >/dev/null 2>&1; then
+    if ! jq -e '.code == "NoSuchKey" and .error == "not_found" and (.statusCode == "404" or .statusCode == 404)' "$tmpdir/readonly-anon.out" >/dev/null 2>&1; then
       if jq -e '.code == "InvalidRequest" or .error == "InvalidRequest" or .message == "InvalidRequest"' "$tmpdir/readonly-anon.out" >/dev/null 2>&1; then failed readonly_anonymous "$HTTP_CODE" invalid_storage_request; fi
       failed readonly_anonymous "$HTTP_CODE" unexpected_http_400
     fi
@@ -137,7 +137,7 @@ printf 'header = "apikey: %s"\nheader = "Authorization: Bearer %s"\n' "$SUPABASE
 printf 'url = "%s/storage/v1/object/evidence/%s"\nrequest = "GET"\n' "$SUPABASE_URL" "$path" >"$tmpdir/anon-request.conf"; chmod 600 "$tmpdir/anon-request.conf"
 http_run anonymous "$tmpdir/anon.conf" "$tmpdir/anon-request.conf" "$tmpdir/anon.out"
 if [[ "$HTTP_CODE" == "400" ]]; then
-  if ! jq -e '.code == "NoSuchKey" and .error == "not_found" and .statusCode == 404' "$tmpdir/anon.out" >/dev/null 2>&1; then
+  if ! jq -e '.code == "NoSuchKey" and .error == "not_found" and (.statusCode == "404" or .statusCode == 404)' "$tmpdir/anon.out" >/dev/null 2>&1; then
     if jq -e '.code == "InvalidRequest" or .error == "InvalidRequest" or .message == "InvalidRequest"' "$tmpdir/anon.out" >/dev/null 2>&1; then failed anonymous "$HTTP_CODE" invalid_storage_request; fi
     failed anonymous "$HTTP_CODE" unexpected_http_400
   fi

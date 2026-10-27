@@ -33,7 +33,7 @@ if [[ "$1" == "-er" && "$expr" == *.tech_a_email* ]]; then printf 'a@example.tes
 if [[ "$1" == "-er" && "$expr" == *.tech_a_password* ]]; then printf 'fixture-password-a'; exit 0; fi
 if [[ "$1" == "-er" ]]; then printf 'mock-value'; exit 0; fi
 if [[ "$1" == "-e" ]]; then
-  if [[ "$expr" == *'NoSuchKey'* ]]; then [[ "$content" == *'"code":"NoSuchKey"'* && "$content" == *'"error":"not_found"'* && "$content" == *'"statusCode":404'* ]]; exit; fi
+  if [[ "$expr" == *'NoSuchKey'* ]]; then [[ "$content" == *'"code":"NoSuchKey"'* && "$content" == *'"error":"not_found"'* && ("$content" == *'"statusCode":404'* || "$content" == *'"statusCode":"404"'*) ]]; exit; fi
   if [[ "$expr" == *'InvalidRequest'* ]]; then [[ "$content" == *'"code":"InvalidRequest"'* || "$content" == *'"error":"InvalidRequest"'* ]]; exit; fi
   exit 0
 fi
@@ -64,7 +64,8 @@ case "${MOCK_CASE:-positive}:$method:$url" in
   download_rejected:GET:*'/storage/v1/object/evidence/'*) code=403 ;;
   hash_mismatch:GET:*'/storage/v1/object/evidence/'*) body='different-bytes' ;;
   anonymous_invalid_request:GET:*'/storage/v1/object/evidence/'*) [[ "$request" == *'Bearer mock-anon'* ]] && code=400 && body='{"code":"InvalidRequest"}' ;;
-  anonymous_nosuchkey:GET:*'/storage/v1/object/evidence/'*) [[ "$request" == *'Bearer mock-anon'* ]] && code=400 && body='{"code":"NoSuchKey","error":"not_found","statusCode":404}' ;;
+  anonymous_nosuchkey_numeric:GET:*'/storage/v1/object/evidence/'*) [[ "$request" == *'Bearer mock-anon'* ]] && code=400 && body='{"code":"NoSuchKey","error":"not_found","statusCode":404}' ;;
+  anonymous_nosuchkey_string:GET:*'/storage/v1/object/evidence/'*) [[ "$request" == *'Bearer mock-anon'* ]] && code=400 && body='{"code":"NoSuchKey","error":"not_found","statusCode":"404"}' ;;
   anonymous_leak:GET:*'/storage/v1/object/evidence/'*) [[ "$request" == *'Bearer mock-anon'* ]] && code=200 ;;
   cross_tenant_leak:GET:*'22222222-2222-4222-8222-222222222222/reports/'*) code=200 ;;
   delete_unauthorized:DELETE:*'/storage/v1/object/evidence/'*) code=403 ;;
@@ -116,11 +117,13 @@ env PATH="$mockbin:$PATH" MOCK_IMAGE_FILE="$image" MOCK_CASE=positive \
   ANUBIS_STORAGE_ANON_ONLY=YES ANUBIS_STORAGE_CONFIRM=YES SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_ANON_KEY=mock-anon \
   ANUBIS_STORAGE_FIXTURE_FILE="$manifest" bash "$script" >"$readonly_output" 2>&1
 grep -qx 'STATUS=PASS' "$readonly_output" || { echo 'MOCK_FAIL=readonly_positive'; exit 1; }
-nosuchkey_output="$tmpdir/nosuchkey.out"
-env PATH="$mockbin:$PATH" MOCK_IMAGE_FILE="$image" MOCK_CASE=anonymous_nosuchkey \
-  ANUBIS_STORAGE_ANON_ONLY=YES ANUBIS_STORAGE_CONFIRM=YES SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_ANON_KEY=mock-anon \
-  ANUBIS_STORAGE_FIXTURE_FILE="$manifest" bash "$script" >"$nosuchkey_output" 2>&1
-grep -qx 'STATUS=PASS' "$nosuchkey_output" || { echo 'MOCK_FAIL=anonymous_nosuchkey'; exit 1; }
+for nosuchkey_case in anonymous_nosuchkey_numeric anonymous_nosuchkey_string; do
+  nosuchkey_output="$tmpdir/$nosuchkey_case.out"
+  env PATH="$mockbin:$PATH" MOCK_IMAGE_FILE="$image" MOCK_CASE="$nosuchkey_case" \
+    ANUBIS_STORAGE_ANON_ONLY=YES ANUBIS_STORAGE_CONFIRM=YES SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_ANON_KEY=mock-anon \
+    ANUBIS_STORAGE_FIXTURE_FILE="$manifest" bash "$script" >"$nosuchkey_output" 2>&1
+  grep -qx 'STATUS=PASS' "$nosuchkey_output" || { echo "MOCK_FAIL=$nosuchkey_case"; exit 1; }
+done
 
 for case_name in login_invalid jwt_invalid upload_rejected download_rejected hash_mismatch anonymous_invalid_request anonymous_leak cross_tenant_leak delete_unauthorized final_delete_leak; do
   run_case "$case_name"
