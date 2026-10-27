@@ -46,15 +46,16 @@ set -u
 out=""; req=""
 while (($#)); do case "$1" in -o) out="$2"; shift 2;; --config) req+=" $(<"$2")"; shift 2;; *) shift;; esac; done
 url="${req#*url = \"}"; url="${url%%\"*}"; method=GET
+[[ "$url" == http://127.0.0.1:54321/* ]] || { printf '000'; exit 97; }
 [[ "$req" == *'request = "POST"'* ]] && method=POST; [[ "$req" == *'request = "DELETE"'* ]] && method=DELETE
 code=200; body='{}'; case "${MOCK_CASE:-positive}:$method:$url" in
   unexpected_400:GET:*'/storage/v1/object/evidence/'*) code=400; body='{"code":"InvalidRequest"}';;
   cross_leak:GET:*'22222222-2222-4222-8222-222222222222/reports/'*) :;;
   delete_leak:DELETE:*'/storage/v1/object/evidence/'*) :;;
   final_delete_leak:DELETE:*'55555555-5555-4555-8555-555555555555/evidence/'*) :;;
-  delete_access_denied_400:DELETE:*'/storage/v1/object/evidence/'*) code=400; body='{\"code\":\"AccessDenied\",\"error\":\"access_denied\",\"statusCode\":400}';;
-  delete_nosuchkey_400:DELETE:*'/storage/v1/object/evidence/'*) code=400; body='{\"code\":\"NoSuchKey\",\"error\":\"not_found\",\"statusCode\":\"404\"}';;
-  delete_invalid_request_400:DELETE:*'/storage/v1/object/evidence/'*) code=400; body='{\"code\":\"InvalidRequest\",\"error\":\"invalid_request\",\"statusCode\":400}';;
+  delete_access_denied_400:DELETE:*'/storage/v1/object/evidence/'*) code=400; body='{"code":"AccessDenied","error":"access_denied","statusCode":400}';;
+  delete_nosuchkey_400:DELETE:*'/storage/v1/object/evidence/'*) code=400; body='{"code":"NoSuchKey","error":"not_found","statusCode":"404"}';;
+  delete_invalid_request_400:DELETE:*'/storage/v1/object/evidence/'*) code=400; body='{"code":"InvalidRequest","error":"invalid_request","statusCode":400}';;
   delete_html_400:DELETE:*'/storage/v1/object/evidence/'*) code=400; body='<html>bad request</html>';;
   *)
     if [[ "$method" == DELETE && "$url" == *'/storage/v1/object/evidence/'* ]]; then code=403; fi
@@ -78,7 +79,7 @@ MOCK
 chmod 700 "$mockbin/curl"
 run_case() { local name="$1"; local output="$tmpdir/$name.out" rc; set +e; env PATH="$mockbin:$PATH" MOCK_IMAGE_FILE="$image" MOCK_TOKEN_FILE="$tmpdir/$name.token" MOCK_CASE="$name" ANUBIS_STORAGE_PHASE=AB ANUBIS_STORAGE_CONFIRM=YES SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_ANON_KEY=mock ANUBIS_STORAGE_FIXTURE_FILE="$manifest" bash "$script" >"$output" 2>&1; rc=$?; set -e; [[ "$rc" -ne 0 ]] && grep -q '^STATUS=FAIL$' "$output" && grep -q '^STEP=' "$output" || { echo "MOCK_FAIL=$name"; exit 1; }; }
 run_positive_denial() { local name="$1"; local output="$tmpdir/$name.out"; env PATH="$mockbin:$PATH" MOCK_IMAGE_FILE="$image" MOCK_TOKEN_FILE="$tmpdir/$name.token" MOCK_CASE="$name" ANUBIS_STORAGE_PHASE=AB ANUBIS_STORAGE_CONFIRM=YES SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_ANON_KEY=mock ANUBIS_STORAGE_FIXTURE_FILE="$manifest" bash "$script" >"$output" 2>&1 || { cat "$output"; exit 1; }; grep -q '^STATUS=PASS$' "$output" || { echo "MOCK_FAIL=$name"; exit 1; }; }
-env PATH="$mockbin:$PATH" MOCK_IMAGE_FILE="$image" MOCK_TOKEN_FILE="$tmpdir/positive.token" MOCK_STATE_FILE="$tmpdir/positive.state" MOCK_CASE=positive ANUBIS_STORAGE_CONFIRM=YES ANUBIS_STORAGE_DELETE_POSITIVE_CONFIRM=YES SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_ANON_KEY=mock ANUBIS_STORAGE_FIXTURE_FILE="$manifest" bash "$script" >"$tmpdir/positive.out" 2>&1 || { cat "$tmpdir/positive.out"; exit 1; }
+env PATH="$mockbin:$PATH" MOCK_IMAGE_FILE="$image" MOCK_TOKEN_FILE="$tmpdir/positive.token" MOCK_STATE_FILE="$tmpdir/positive.state" MOCK_CASE=positive ANUBIS_STORAGE_PHASE=AB ANUBIS_STORAGE_CONFIRM=YES SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_ANON_KEY=mock ANUBIS_STORAGE_FIXTURE_FILE="$manifest" bash "$script" >"$tmpdir/positive.out" 2>&1 || { cat "$tmpdir/positive.out"; exit 1; }
 grep -q '^STATUS=PASS$' "$tmpdir/positive.out" || { echo MOCK_FAIL=positive; exit 1; }
 for case_name in cross_leak delete_leak final_delete_leak unexpected_400; do run_case "$case_name"; done
 for case_name in delete_access_denied_400 delete_nosuchkey_400; do run_positive_denial "$case_name"; done

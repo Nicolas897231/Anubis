@@ -35,7 +35,7 @@ Persistencia tras relogin no prueba reinicio de contenedores ni refresh/expiraci
 
 P1-MVP-V1-CLOSE-LOCAL.
 
-Storage close runner prepared. Real Ubuntu evidence remains open: finalized object read returned HTTP 400, DELETE finalized and authorized discardable fixture are pending. The mock currently has a timeout under the Windows harness and is not treated as PASS.
+Storage close runner prepared. Mock JSON root cause was literal backslashes in single-quoted simulated bodies; corrected. Windows mock remains TIMEOUT under the local harness and is not treated as PASS. Real Ubuntu evidence remains open: finalized object read returned HTTP 400, DELETE finalized and authorized discardable fixture are pending.
 
 ## GOAL
 

@@ -8,6 +8,7 @@ Estado: OPEN / no certificado.
 - DELETE no autorizado: pendiente de retest con clasificación estructurada de HTTP 400 y postchecks de objeto/metadata.
 - finalized_read_before: pendiente; el runner ahora consulta metadata y emite únicamente code, error y statusCode sanitizados para un HTTP 400.
 - DELETE autorizado: pendiente de manifiesto independiente con discardable_path, discardable_evidence_id y discardable_image_file.
+- Mock: se corrigieron cuerpos JSON con barras invertidas literales; el arnés Windows continúa TIMEOUT y no se eleva a PASS.
 
 ## Clasificación
 
