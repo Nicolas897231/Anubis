@@ -33,9 +33,9 @@ Persistencia tras relogin no prueba reinicio de contenedores ni refresh/expiraci
 
 ## CURRENT_TASK
 
-P1-MVP-V1-CLOSE-LOCAL.
+P1-NEXT-SECURITY-PATCH-INTEGRATION.
 
-Storage close runner prepared. Mock JSON root cause was literal backslashes in single-quoted simulated bodies; corrected. Windows mock remains TIMEOUT under the local harness and is not treated as PASS. Real Ubuntu evidence remains open: finalized object read returned HTTP 400, DELETE finalized and authorized discardable fixture are pending.
+Next.js 16.4.3 security patch is validated only in worktree `security/next-patch`: TypeScript PASS, Vitest 79/79 PASS, DB 35/35 PASS, ESLint scoped PASS, production build PASS, and full/production npm audits PASS. `jsdom` 30.1.3 resolves the development `undici` advisory through `undici` 8.12.3. Main remains unmerged. Real Ubuntu Storage evidence remains open: finalized object read, finalized DELETE, authorized discardable fixture, Signature/PDF E2E, and isolated backup/restore.
 
 ## GOAL
 

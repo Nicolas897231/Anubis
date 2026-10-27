@@ -2,6 +2,11 @@
 
 Estado: OPEN / no certificado.
 
+## Parche Next.js aislado
+
+- Worktree `security/next-patch`: Next.js 16.4.3 estable; TypeScript, Vitest 79/79, DB 35/35, ESLint focalizado, build de producción y auditorías completa/producción: PASS.
+- `jsdom` 30.1.3 actualiza `undici` a 8.12.3; no quedan vulnerabilidades auditables en producción ni desarrollo. El resultado está pendiente de integración a `main`.
+
 ## Evidencia actual
 
 - Storage migration 008, upload/download autenticados, SHA-256, anonymous denial y cross-tenant read: PASS real reportado por Ubuntu.
