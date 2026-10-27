@@ -9,6 +9,10 @@ const eslintConfig = defineConfig([
   globalIgnores([
     // Default ignores of eslint-config-next:
     ".next/**",
+    "node_modules/**",
+    ".git/**",
+    "worktrees/**",
+    "**/node_modules/**",
     "anubis-scaffold/**",
     "out/**",
     "build/**",
