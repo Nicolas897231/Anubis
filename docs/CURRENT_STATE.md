@@ -3,7 +3,7 @@
 ## PROJECT
 
 ANUBIS by S&N TI. Servicios tecnicos y evidencia de operacion, no ERP.
-Actualizado: 2026-10-20; Ubuntu local es el entorno completo de desarrollo/integracion. MVP V1.0 en cierre de gates, no listo para produccion.
+Actualizado: 2026-10-27; Ubuntu local es el entorno completo de desarrollo/integracion. MVP V1.0 en cierre de gates, no listo para produccion.
 
 ## CURRENT PHASE
 
@@ -22,21 +22,21 @@ Phase 2 no autorizada. Primero cerrar integracion y gates pendientes de Phase 1.
 
 ## CURRENT BLOCKER
 
-Ubuntu reporto falta de Node en el preflight anterior; corregido sin requerir Node/npm host. Falta repetirlo y validar recursos/puertos/permisos, arranque e integracion real local. Evidencia: [LOCAL_LAB_VALIDATION](LOCAL_LAB_VALIDATION.md).
-Auth/MFA, Data API/RLS, aislamiento, concurrencia y despliegue Phase 1 deben probarse en Ubuntu con Supabase local. La ausencia de proyecto cloud ya no bloquea Phase 1.
+El parche Next.js ya está integrado en `main` y sus regresiones automáticas pasan. El cierre real sigue bloqueado por finalized-read HTTP 400, DELETE finalizado, Storage C descartable, firma/PDF E2E, restore aislado y UAT Ubuntu. Evidencia: [MVP_V1_SECURITY_GATE](MVP_V1_SECURITY_GATE.md).
+La ausencia de proyecto cloud ya no bloquea Phase 1; las validaciones restantes requieren Supabase LOCAL y JWT legítimos.
 
 ## WHAT IS REAL
 
 - Implementacion local de Auth SSR/TOTP, perfiles y onboarding de organizaciones.
 - Membresias, roles y seats/licencias; OWNER puede ejecutar servicios con un solo seat.
 - Clientes, servicios, asignaciones con historial y transiciones autorizadas.
-- Reportes versionados con finalizacion inmutable; Storage privado, firma y PDF implementados, aun sin retest real Ubuntu.
+- Reportes versionados con finalizacion inmutable; Storage privado con upload/download, hash, anónimo y cross-tenant validados en Ubuntu; finalized-read/DELETE/C, firma y PDF siguen pendientes.
 - Eventos de auditoria, RLS y autorizacion server-side; panel de plataforma separado.
 
 ## WHAT IS MOCK / NOT VALIDATED
 
 Las rutas /app y /admin no usan mock-data; fixtures anteriores pueden permanecer desconectados.
-SQL validado en PostgreSQL WASM aislado y SDK simulado en tests; Storage aun falta validarlo con Supabase local/Docker.
+SQL validado en PostgreSQL WASM aislado y SDK simulado en tests; Storage tiene validaciones reales parciales y conserva gates pendientes.
 Sin Supabase configurado, login deshabilitado y rutas privadas cerradas.
 La carga de evidencia, firma y PDF estan implementados pero no validados en el laboratorio; pagos y offline sync siguen pendientes. El manifest PWA no implica offline.
 Contenido publico/legal de Phase 0 no equivale a politicas finales ni contratacion aprobada.
@@ -57,21 +57,21 @@ Configuracion Supabase en runtime, sin service_role; no compartir secretos ni ca
 
 Entorno de desarrollo/integracion: Ubuntu con Docker, Next.js privado, Caddy HTTPS en 443 y Supabase local; Guardian conserva 80.
 FQDN: https://anubis.snti.local; IP solo en DNS/hosts, no en codigo.
-Phase 0 validada por el usuario; nueva imagen Phase 1 pendiente. No se crearon recursos cloud.
+Phase 0 validada por el usuario; build Next.js 16.4.3 PASS en `main`. No se crearon recursos cloud.
 Diseno local existente: compose.lab.yaml, Supabase CLI con puertos loopback, TLS Docker :8443 sin publicar y correo mediante tunel SSH. PostgreSQL, Studio, correo y servicios internos no se exponen a LAN/internet. Guia: [LOCAL_SUPABASE_LAB](LOCAL_SUPABASE_LAB.md).
 
 ## CURRENT RISKS
 
-Phase 1: Storage/firma/PDF reales pendientes de retest; SMOKE-03 sigue BLOCKED por OWNER TOTP HTTP 422 y SMOKE-04 esta preparado pero no ejecutado. Riesgos operativos/sesiones y recuperacion MFA deben quedar explicitos, sin bypass.
+Phase 1: finalized-read/DELETE/C de Storage, firma/PDF reales y restore aislado pendientes; SMOKE-03 sigue BLOCKED por OWNER TOTP HTTP 422 y SMOKE-04 está preparado pero no ejecutado. Riesgos operativos/sesiones y recuperación MFA deben quedar explícitos, sin bypass.
 Backup/restore y release operations siguen siendo bloqueadores del cierre comercial V1.0.
 Cloud, SMTP externo, backup/restore y controles productivos: [PRE-PRODUCTION / RELEASE GATE](PRODUCTION_READINESS.md), diferido hasta producto funcionalmente completo; no provisionar ahora.
 Retencion/legal, aprobacion humana ERD/permisos y trial SOLO/1 seat/14 dias siguen pendientes.
-Ultimo audit: produccion sin hallazgos; 5 high en dependencias dev. No implica certificacion de seguridad.
+Última auditoría npm en `main`: producción y desarrollo sin vulnerabilidades. No implica certificación de seguridad.
 Detalle bajo demanda: [PENDING_DECISIONS](PENDING_DECISIONS.md).
 
 ## NEXT ACTION
 
-Ejecutar el retest focalizado de Storage, firma y PDF en Ubuntu segun [NEXT_TASK](NEXT_TASK.md), sin repetir gates PASS ni ejecutar full QA.
+Ejecutar el lote UAT focalizado de Storage, firma y PDF en Ubuntu según [NEXT_TASK](NEXT_TASK.md), sin repetir gates PASS ni ejecutar operaciones destructivas sin confirmación.
 
 ## DO NOT DO
 

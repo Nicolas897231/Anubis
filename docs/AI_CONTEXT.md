@@ -33,9 +33,9 @@ Persistencia tras relogin no prueba reinicio de contenedores ni refresh/expiraci
 
 ## CURRENT_TASK
 
-P1-NEXT-SECURITY-PATCH-INTEGRATION.
+P1-MVP-V1-CLOSE-LOCAL.
 
-Next.js 16.4.3 security patch is validated only in worktree `security/next-patch`: TypeScript PASS, Vitest 79/79 PASS, DB 35/35 PASS, ESLint scoped PASS, production build PASS, and full/production npm audits PASS. `jsdom` 30.1.3 resolves the development `undici` advisory through `undici` 8.12.3. Main remains unmerged. Real Ubuntu Storage evidence remains open: finalized object read, finalized DELETE, authorized discardable fixture, Signature/PDF E2E, and isolated backup/restore.
+Next.js 16.4.3 security patch is now integrated in `main` from `security/next-patch`: TypeScript PASS, Vitest 79/79 PASS, DB 35/35 PASS, ESLint scoped PASS, production build PASS, and full/production npm audits PASS. `jsdom` 30.1.3 resolves the development `undici` advisory through `undici` 8.12.3. Ubuntu mock Storage PASS was confirmed by the user. Real Ubuntu evidence remains open: finalized object read returned HTTP 400, finalized DELETE, authorized discardable fixture, Signature/PDF E2E, and isolated backup/restore.
 
 ## GOAL
 

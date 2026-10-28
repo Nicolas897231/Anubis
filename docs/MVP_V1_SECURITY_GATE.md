@@ -4,8 +4,8 @@ Estado: OPEN / no certificado.
 
 ## Parche Next.js aislado
 
-- Worktree `security/next-patch`: Next.js 16.4.3 estable; TypeScript, Vitest 79/79, DB 35/35, ESLint focalizado, build de producción y auditorías completa/producción: PASS.
-- `jsdom` 30.1.3 actualiza `undici` a 8.12.3; no quedan vulnerabilidades auditables en producción ni desarrollo. El resultado está pendiente de integración a `main`.
+- Integrado en `main` mediante `63dbbae`: Next.js 16.4.3 estable; TypeScript, Vitest 79/79, DB 35/35, ESLint focalizado, build de producción y auditorías completa/producción: PASS, repetidos sobre checkout limpio.
+- `jsdom` 30.1.3 actualiza `undici` a 8.12.3; no quedan vulnerabilidades auditables en producción ni desarrollo.
 
 ## Evidencia actual
 
@@ -14,6 +14,7 @@ Estado: OPEN / no certificado.
 - finalized_read_before: pendiente; el runner ahora consulta metadata y emite únicamente code, error y statusCode sanitizados para un HTTP 400.
 - DELETE autorizado: pendiente de manifiesto independiente con discardable_path, discardable_evidence_id y discardable_image_file.
 - Mock: se corrigieron cuerpos JSON con barras invertidas literales; el arnés Windows continúa TIMEOUT y no se eleva a PASS.
+- Local QA en `main`: TypeScript PASS; database 35/35 PASS; Vitest 79/79 PASS; ESLint PASS focalizado; production build PASS con Next.js 16.4.3; auditorías completa/producción PASS.
 
 ## Clasificación
 
